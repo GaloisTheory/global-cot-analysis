@@ -1,0 +1,28 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Other
+.ruff_cache/
+.env
+.ipynb_checkpoints/
+*.zip
+node_modules
+.next
+sentence_embedding_cache
+graph_layout_service/cache/
+
+# New folders
+outputs/
+embed_cache/
+prompts/
+!prompts/prompts.json
+!prompts/prefixes.json
+multirun/
