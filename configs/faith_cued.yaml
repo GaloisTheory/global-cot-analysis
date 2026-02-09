@@ -1,0 +1,10 @@
+defaults:
+  - _self_
+  - r: default
+  - f: default
+
+_name_: "faith_cued"
+prompt: "faith_cued"
+models: ["deepseek-r1-qwen-14b"]
+property_checkers: ["correctness"]
+command: "rollouts"

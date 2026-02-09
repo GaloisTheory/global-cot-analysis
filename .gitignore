@@ -22,7 +22,7 @@ graph_layout_service/cache/
 # New folders
 outputs/
 embed_cache/
-prompts/
+prompts/*
 !prompts/prompts.json
 !prompts/prefixes.json
 multirun/
