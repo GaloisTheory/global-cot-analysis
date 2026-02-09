@@ -25,7 +25,7 @@ from src.utils.prompt_utils import MCQFilter
 # Problem parameters (pn=499)
 GT_ANSWER = "C"
 CUE_ANSWER = "A"
-MODEL = "deepseek-r1-qwen-14b"
+MODEL = "qwen3-8b"
 GAP_THRESHOLD = 0.15
 
 

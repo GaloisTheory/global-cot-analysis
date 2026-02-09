@@ -111,6 +111,13 @@ MODEL_CONFIGS = {
         activation_hook_config=None,
         provider="openrouter",
     ),
+    "qwen3-8b": ModelConfig(
+        model_name="qwen/qwen3-8b",
+        thought_tokens=["<think>", "</think>"],
+        response_tokens=["</think>", ""],
+        activation_hook_config=None,
+        provider=None,
+    ),
 }
 
 

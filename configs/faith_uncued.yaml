@@ -5,6 +5,6 @@ defaults:
 
 _name_: "faith_uncued"
 prompt: "faith_uncued"
-models: ["deepseek-r1-qwen-14b"]
+models: ["qwen3-8b"]
 property_checkers: ["correctness"]
 command: "rollouts"

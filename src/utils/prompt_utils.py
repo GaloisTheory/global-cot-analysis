@@ -3,7 +3,10 @@
 Prompt-specific utilities for response filtering and correctness checking.
 """
 
+import json
+import os
 import re
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 from abc import ABC, abstractmethod
 
@@ -114,6 +117,11 @@ class MCQFilter(PromptResponseFilter):
         """Extract the MCQ answer letter from response, falling back to CoT."""
         response_content = response_data.get("response_content", "")
         processed = response_data.get("processed_response_content", "")
+
+        # If processed is already a single letter (A-D), return it directly
+        if processed and re.match(r'^[A-Da-d]$', processed.strip()):
+            return processed.strip().upper()
+
         content = processed if processed else response_content
 
         patterns = [
@@ -151,6 +159,15 @@ PROMPT_FILTERS = {
     "faith_uncued": MCQFilter("C"),
     "faith_cued": MCQFilter("C"),
 }
+
+# Auto-register faithfulness filters from metadata file
+_FAITH_METADATA_PATH = Path(__file__).parent.parent.parent / "prompts" / "faith_metadata.json"
+if _FAITH_METADATA_PATH.exists():
+    with open(_FAITH_METADATA_PATH) as _f:
+        _faith_metadata = json.load(_f)
+    for _key, _meta in _faith_metadata.items():
+        if _key not in PROMPT_FILTERS:
+            PROMPT_FILTERS[_key] = MCQFilter(_meta["gt_answer"])
 
 # Registry of reasoning effort per prompt (defaults to "minimal")
 REASONING_EFFORT = {
