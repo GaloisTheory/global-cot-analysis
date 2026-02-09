@@ -15,14 +15,13 @@ Usage:
 
 import json
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 
 import numpy as np
 
 
 MODEL = "deepseek_r1_qwen_14b"  # safe name (underscores)
-F_CONFIG = "default"
 
 
 def find_flowchart(prompt_index: str) -> Path | None:
@@ -59,7 +58,7 @@ def extract_cluster_stats(flowchart: dict) -> dict:
     return stats
 
 
-def extract_answer_distribution(flowchart: dict) -> dict:
+def extract_answer_distribution(flowchart: dict) -> list:
     """Extract per-response answer and correctness."""
     answers = []
     for resp_dict in flowchart.get("responses", []):
