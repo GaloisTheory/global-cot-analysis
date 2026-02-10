@@ -490,5 +490,11 @@
     "gt_answer": "C",
     "cue_answer": "A",
     "condition": "cued"
+  },
+  "faith_combined_pn277": {
+    "pn": 277,
+    "gt_answer": "B",
+    "cue_answer": "D",
+    "condition": "combined"
   }
 }
