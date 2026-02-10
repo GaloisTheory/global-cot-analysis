@@ -1,0 +1,25 @@
+_name_: "thought_anchor"
+
+num_seeds_rollouts: 100
+num_seeds_prefixes: 10
+sentence_embedding_model: "sentence-transformers/paraphrase-mpnet-base-v2"
+
+sentences_instead_of_chunks: true
+
+# Clustering method
+clustering_method: "thought_anchor"
+
+# Stage 1: Thought Anchor Classification
+classification_model: "google/gemini-3-flash-preview"
+classification_batch_size: 30
+
+# Stage 2: Intra-category Embedding Clustering
+intra_category_threshold: 0.55
+n_jobs: -1
+
+# Stage 3: LLM Super-clustering
+llm_model: "google/gemini-3-flash-preview"
+target_clusters_per_category: 2
+max_workers: 100
+request_delay: 0.01
+gamma: 0.5

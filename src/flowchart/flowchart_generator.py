@@ -109,10 +109,13 @@ class FlowchartGenerator:
 
     def _create_clusterer(self, config_f: Dict[str, Any]):
         """Create the appropriate clusterer based on method in config.f."""
-        method = "sentence_then_llm"
+        method = config_f.get("clustering_method", "sentence_then_llm")
 
         if method == "sentence_then_llm":
             return SentenceThenLLMClusterer(config_f)
+        elif method == "thought_anchor":
+            from src.clustering.thought_anchor_clusterer import ThoughtAnchorClusterer
+            return ThoughtAnchorClusterer(config_f)
         else:
             raise ValueError(f"Unknown clustering method: {method}")
 
