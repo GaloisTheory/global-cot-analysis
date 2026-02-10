@@ -33,7 +33,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     
     # Graph visualization (note: requires system Graphviz libraries)
-    # "pygraphviz>=1.11",
+    "pygraphviz>=1.11",
     
     # Pydantic for FastAPI models
     "pydantic>=2.0.0",

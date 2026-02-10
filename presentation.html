@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global CoT Analysis</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0f0f13;
+    --surface: #18181f;
+    --surface2: #1e1e28;
+    --border: #2a2a38;
+    --text: #e4e4ed;
+    --text-dim: #8888a0;
+    --accent: #6366f1;
+    --accent2: #818cf8;
+    --accent-glow: rgba(99, 102, 241, 0.15);
+    --green: #34d399;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --cyan: #22d3ee;
+    --pink: #f472b6;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html {
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) var(--bg);
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* ── Navigation ── */
+  nav {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 100;
+    background: rgba(15, 15, 19, 0.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+  }
+
+  nav .nav-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+  }
+
+  nav .logo {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--accent2);
+    letter-spacing: -0.02em;
+  }
+
+  nav .nav-links {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  nav .nav-links a {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+
+  nav .nav-links a:hover {
+    color: var(--text);
+    background: var(--surface2);
+  }
+
+  /* ── Sections ── */
+  section {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 5rem 2rem 3rem;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    min-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-top: 56px;
+  }
+
+  .hero .overline {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent2);
+    margin-bottom: 1rem;
+  }
+
+  .hero h1 {
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, var(--text) 0%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero .subtitle {
+    font-size: 1.15rem;
+    color: var(--text-dim);
+    max-width: 680px;
+    line-height: 1.8;
+    margin-bottom: 2.5rem;
+  }
+
+  .hero .meta-row {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .meta-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+  }
+
+  .meta-pill .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ── Section headers ── */
+  .section-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent2);
+    margin-bottom: 0.75rem;
+  }
+
+  h2 {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 1rem;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-bottom: 0.75rem;
+  }
+
+  .section-desc {
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    max-width: 680px;
+    margin-bottom: 2.5rem;
+  }
+
+  /* ── Cards ── */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 4px 24px var(--accent-glow);
+  }
+
+  .card .card-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    font-weight: 700;
+  }
+
+  .card h4 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+
+  .card p {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  /* ── Pipeline ── */
+  .pipeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+  }
+
+  .pipeline::before {
+    content: '';
+    position: absolute;
+    left: 18px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--accent), var(--green), var(--amber), var(--cyan));
+    border-radius: 2px;
+  }
+
+  .pipeline-step {
+    display: flex;
+    gap: 1.5rem;
+    padding: 1.25rem 0;
+    position: relative;
+  }
+
+  .pipeline-dot {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.8rem;
+    z-index: 1;
+    border: 2px solid;
+  }
+
+  .pipeline-content h4 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+
+  .pipeline-content p {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  /* ── Code / file tree ── */
+  .file-tree {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+
+  .file-tree-header {
+    padding: 0.75rem 1.25rem;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .file-tree-body {
+    padding: 1rem 1.25rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    line-height: 1.9;
+    overflow-x: auto;
+  }
+
+  .ft-dir { color: var(--accent2); font-weight: 500; }
+  .ft-file { color: var(--text-dim); }
+  .ft-comment { color: #555570; font-style: italic; }
+  .ft-highlight { color: var(--green); }
+
+  /* ── Table ── */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+
+  thead {
+    background: var(--surface2);
+  }
+
+  th {
+    text-align: left;
+    padding: 0.75rem 1.25rem;
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 0.7rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    background: var(--surface2);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    color: var(--cyan);
+  }
+
+  /* ── Tags ── */
+  .tag {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .tag-green  { background: rgba(52, 211, 153, 0.12); color: var(--green); }
+  .tag-amber  { background: rgba(251, 191, 36, 0.12); color: var(--amber); }
+  .tag-red    { background: rgba(248, 113, 113, 0.12); color: var(--red); }
+  .tag-cyan   { background: rgba(34, 211, 238, 0.12); color: var(--cyan); }
+  .tag-accent { background: var(--accent-glow); color: var(--accent2); }
+  .tag-pink   { background: rgba(244, 114, 182, 0.12); color: var(--pink); }
+
+  /* ── Callout ── */
+  .callout {
+    border-left: 3px solid;
+    padding: 1.25rem 1.5rem;
+    border-radius: 0 10px 10px 0;
+    margin-bottom: 1.5rem;
+  }
+
+  .callout-accent {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+  }
+
+  .callout-green {
+    border-color: var(--green);
+    background: rgba(52, 211, 153, 0.06);
+  }
+
+  .callout-amber {
+    border-color: var(--amber);
+    background: rgba(251, 191, 36, 0.06);
+  }
+
+  .callout h4 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+  }
+
+  .callout p, .callout li {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    line-height: 1.7;
+  }
+
+  .callout ul {
+    padding-left: 1.25rem;
+    margin-top: 0.5rem;
+  }
+
+  .callout li {
+    margin-bottom: 0.3rem;
+  }
+
+  /* ── Image ── */
+  .img-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+
+  .img-card img {
+    width: 100%;
+    display: block;
+  }
+
+  .img-card .img-caption {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    border-top: 1px solid var(--border);
+  }
+
+  /* ── Divider ── */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 3rem 0;
+  }
+
+  /* ── Two-column ── */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+
+  @media (max-width: 768px) {
+    .two-col { grid-template-columns: 1fr; }
+    .card-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── Stats row ── */
+  .stats-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 2.5rem;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    flex: 1;
+    min-width: 140px;
+  }
+
+  .stat-card .stat-value {
+    font-size: 1.75rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    margin-bottom: 0.3rem;
+  }
+
+  .stat-card .stat-label {
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* ── Difficulty meter ── */
+  .difficulty-meter {
+    display: flex;
+    gap: 4px;
+    margin-top: 0.5rem;
+  }
+
+  .difficulty-meter .bar {
+    width: 40px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border);
+  }
+
+  .difficulty-meter .bar.filled { background: var(--green); }
+  .difficulty-meter .bar.filled-amber { background: var(--amber); }
+  .difficulty-meter .bar.filled-red { background: var(--red); }
+
+  /* ── Footer ── */
+  footer {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+  }
+
+  footer a {
+    color: var(--accent2);
+    text-decoration: none;
+  }
+
+  /* ── Checklist ── */
+  .checklist {
+    list-style: none;
+    padding: 0;
+  }
+
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.6rem 0;
+    font-size: 0.85rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .checklist li:last-child { border-bottom: none; }
+
+  .check-icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    margin-top: 2px;
+  }
+
+  .check-easy {
+    background: rgba(52, 211, 153, 0.15);
+    color: var(--green);
+  }
+
+  .check-mod {
+    background: rgba(251, 191, 36, 0.15);
+    color: var(--amber);
+  }
+
+  .check-hard {
+    background: rgba(248, 113, 113, 0.15);
+    color: var(--red);
+  }
+
+  /* ── Code block ── */
+  .code-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+
+  .code-block-header {
+    padding: 0.6rem 1.25rem;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+  }
+
+  .code-block pre {
+    padding: 1rem 1.25rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.76rem;
+    line-height: 1.8;
+    overflow-x: auto;
+    color: var(--text-dim);
+  }
+
+  .code-block pre .kw { color: var(--accent2); }
+  .code-block pre .str { color: var(--green); }
+  .code-block pre .cmt { color: #555570; }
+  .code-block pre .fn { color: var(--cyan); }
+
+  /* ── Smooth anchor offset ── */
+  section[id] {
+    scroll-margin-top: 72px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav>
+  <div class="nav-inner">
+    <div class="logo">Global CoT Analysis</div>
+    <div class="nav-links">
+      <a href="#overview">Overview</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#code">Code</a>
+      <a href="#pipeline">Pipeline</a>
+      <a href="#models">Models</a>
+      <a href="#visualization">Viz</a>
+      <a href="#extensibility">Extensibility</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- HERO                                         -->
+<!-- ════════════════════════════════════════════ -->
+<section class="hero" id="overview">
+  <div class="overline">MATS Research &middot; Interpretability</div>
+  <h1>Global CoT Analysis</h1>
+  <p class="subtitle">
+    A research toolkit for uncovering global patterns across many chains of thought.
+    Generates reasoning traces, clusters semantically similar steps, identifies algorithmic
+    strategies, predicts outputs from partial CoTs, and visualizes everything as interactive graphs.
+  </p>
+
+  <div class="meta-row">
+    <div class="meta-pill"><span class="dot" style="background:var(--accent)"></span> Python + Next.js</div>
+    <div class="meta-pill"><span class="dot" style="background:var(--green)"></span> ~6,000 LOC backend</div>
+    <div class="meta-pill"><span class="dot" style="background:var(--amber)"></span> ~8,100 LOC frontend</div>
+    <div class="meta-pill"><span class="dot" style="background:var(--cyan)"></span> Hydra configs</div>
+    <div class="meta-pill"><span class="dot" style="background:var(--pink)"></span> OpenRouter API</div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- WHAT IT DOES                                  -->
+<!-- ════════════════════════════════════════════ -->
+<section>
+  <div class="section-label">What it does</div>
+  <h2>Two Clustering Methods, One Goal</h2>
+  <p class="section-desc">
+    Both methods group recurring patterns across reasoning traces, but at different levels of abstraction.
+  </p>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-icon" style="background:var(--accent-glow); color:var(--accent2);">S</div>
+      <h4>Semantic Step Clustering</h4>
+      <p>
+        Clusters similar sentences (e.g. "1+2=3" and "2+1=3") across many CoTs into a detailed
+        reasoning graph. Compresses a large set of traces into a navigable structure. Used downstream
+        to predict model output from partial CoTs.
+      </p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:rgba(52,211,153,0.12); color:var(--green);">A</div>
+      <h4>Algorithmic Step Clustering</h4>
+      <p>
+        Operates at a higher level of abstraction. Identifies reusable strategies the model employs
+        (e.g. "direct conversion" vs. "logarithmic estimation") and builds a coarser, cleaner graph
+        of alternative solution pathways.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- STATS                                         -->
+<!-- ════════════════════════════════════════════ -->
+<section>
+  <div class="section-label">By the numbers</div>
+  <h2>Codebase Overview</h2>
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--accent2)">29</div>
+      <div class="stat-label">Python files</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--cyan)">30</div>
+      <div class="stat-label">Frontend files (TS/TSX)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--green)">5</div>
+      <div class="stat-label">Hydra configs</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--amber)">6</div>
+      <div class="stat-label">Pipeline commands</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--pink)">4</div>
+      <div class="stat-label">Supported models</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- ARCHITECTURE                                  -->
+<!-- ════════════════════════════════════════════ -->
+<section id="architecture">
+  <div class="section-label">Architecture</div>
+  <h2>Project Structure</h2>
+  <p class="section-desc">
+    Clean separation of concerns: generation, clustering, analysis, and visualization are
+    independent layers connected through JSON files.
+  </p>
+
+  <div class="file-tree">
+    <div class="file-tree-header">Repository Layout</div>
+    <div class="file-tree-body">
+<span class="ft-dir">src/</span>                              <span class="ft-comment"># Python pipeline (core)</span>
+  <span class="ft-dir">generation/</span>                    <span class="ft-comment"># API-based rollout generation</span>
+    <span class="ft-file">generate_responses.py</span>      <span class="ft-comment"># APIResponseGenerator &mdash; calls OpenRouter</span>
+  <span class="ft-dir">clustering/</span>                    <span class="ft-comment"># Two-stage semantic clustering</span>
+    <span class="ft-file">base.py</span>                    <span class="ft-comment"># BaseClusterer, entropy/similarity calc</span>
+    <span class="ft-file">sentence_then_llm_clusterer.py</span>  <span class="ft-comment"># Stage 1: embeddings + Stage 2: LLM merge</span>
+  <span class="ft-dir">flowchart/</span>                     <span class="ft-comment"># Graph construction &amp; layout</span>
+    <span class="ft-file">flowchart_generator.py</span>     <span class="ft-comment"># Orchestrates clustering &rarr; JSON graph</span>
+    <span class="ft-file">graphviz_generator.py</span>      <span class="ft-comment"># 2D positioning via pygraphviz</span>
+  <span class="ft-dir">labeling/</span>                      <span class="ft-comment"># Algorithm identification</span>
+    <span class="ft-file">generate_algorithms.py</span>     <span class="ft-comment"># LLM-driven strategy discovery</span>
+    <span class="ft-file">cluster_labeler.py</span>         <span class="ft-comment"># Human-readable cluster names</span>
+  <span class="ft-dir">predictions/</span>                   <span class="ft-comment"># Partial-CoT &rarr; answer prediction</span>
+    <span class="ft-file">prediction_runner.py</span>       <span class="ft-comment"># Prefix-based prediction pipeline</span>
+    <span class="ft-file">utils_predictions.py</span>       <span class="ft-comment"># Scoring &amp; comparison utilities</span>
+  <span class="ft-dir">property_checkers/</span>             <span class="ft-comment"># Rollout-level property system</span>
+    <span class="ft-file">base.py</span>                    <span class="ft-comment"># PropertyChecker base class (Bool, Multi)</span>
+    <span class="ft-file">correctness.py</span>             <span class="ft-comment"># Is the final answer correct?</span>
+    <span class="ft-file">resampled.py</span>               <span class="ft-comment"># Resample vs. original rollout</span>
+    <span class="ft-file">multi_algorithm.py</span>         <span class="ft-comment"># Which algorithms appear in CoT</span>
+    <span class="ft-file">property_runner.py</span>         <span class="ft-comment"># Applies all checkers, registers in graph</span>
+  <span class="ft-dir">utils/</span>                         <span class="ft-comment"># Shared utilities</span>
+    <span class="ft-file">model_utils.py</span>             <span class="ft-comment"># ModelConfig registry (Claude, GPT-OSS)</span>
+    <span class="ft-file">prompt_utils.py</span>            <span class="ft-comment"># Prompt filters &amp; answer validators</span>
+    <span class="ft-file">file_utils.py</span>              <span class="ft-comment"># Standardized path management</span>
+    <span class="ft-file">config_manager.py</span>          <span class="ft-comment"># Hydra config loading/validation</span>
+    <span class="ft-file">json_utils.py</span>              <span class="ft-comment"># JSON I/O with error handling</span>
+    <span class="ft-file">summary_manager.py</span>         <span class="ft-comment"># Experiment progress logging</span>
+  <span class="ft-file">main.py</span>                      <span class="ft-comment"># Entry point (Hydra CLI)</span>
+  <span class="ft-file">chunking.py</span>                  <span class="ft-comment"># Text segmentation &amp; semantic chunking</span>
+
+<span class="ft-dir">configs/</span>                           <span class="ft-comment"># Hydra configuration</span>
+  <span class="ft-dir">r/</span><span class="ft-file">default.yaml</span>              <span class="ft-comment"># Response generation params</span>
+  <span class="ft-dir">f/</span><span class="ft-file">default.yaml</span>              <span class="ft-comment"># Flowchart/clustering params</span>
+  <span class="ft-dir">p/</span><span class="ft-file">default.yaml</span>              <span class="ft-comment"># Prediction params</span>
+  <span class="ft-dir">a/</span><span class="ft-file">default.yaml</span>              <span class="ft-comment"># Algorithm discovery params</span>
+  <span class="ft-file">hex.yaml</span>                    <span class="ft-comment"># Example prompt config</span>
+
+<span class="ft-dir">graph_layout_service/</span>              <span class="ft-comment"># FastAPI layout server</span>
+  <span class="ft-file">app.py</span>                      <span class="ft-comment"># pygraphviz-based 2D positioning</span>
+
+<span class="ft-dir">deployment/</span>                        <span class="ft-comment"># Next.js visualization frontend</span>
+  <span class="ft-dir">app/</span>                          <span class="ft-comment"># Next.js app router pages</span>
+  <span class="ft-dir">components/</span>                   <span class="ft-comment"># D3.js graph visualization</span>
+    <span class="ft-file">GraphizVisualization.tsx</span>  <span class="ft-comment"># Main graph renderer</span>
+    <span class="ft-file">GraphizControls.tsx</span>      <span class="ft-comment"># User interaction controls</span>
+    <span class="ft-file">GraphizRolloutPanel.tsx</span>  <span class="ft-comment"># Rollout detail sidebar</span>
+    <span class="ft-file">GraphizLegend.tsx</span>        <span class="ft-comment"># Color/size legend</span>
+    <span class="ft-file">AlgorithmStructure.tsx</span>   <span class="ft-comment"># Algorithm graph view</span>
+  <span class="ft-dir">flowcharts_public/</span>            <span class="ft-comment"># Pre-built graphs for Vercel</span>
+
+<span class="ft-dir">prompts/</span>                           <span class="ft-comment"># Data directory (gitignored)</span>
+  <span class="ft-file">prompts.json</span>                <span class="ft-comment"># Prompt definitions</span>
+  <span class="ft-file">prefixes.json</span>               <span class="ft-comment"># Partial CoTs for resampling</span>
+  <span class="ft-file">algorithms.json</span>             <span class="ft-comment"># Algorithm cues &amp; descriptions</span>
+  <span class="ft-dir">{prompt}/{model}/rollouts/</span>   <span class="ft-comment"># Generated reasoning traces</span>
+  <span class="ft-dir">{prompt}/{model}/resamples/</span>  <span class="ft-comment"># Prefix continuations</span>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- CODE INVENTORY                                -->
+<!-- ════════════════════════════════════════════ -->
+<section id="code">
+  <div class="section-label">Code inventory</div>
+  <h2>What's Included</h2>
+  <p class="section-desc">
+    Every significant module and what it provides.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Module</th>
+          <th>Key Files</th>
+          <th>Responsibility</th>
+          <th>Tags</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Generation</strong></td>
+          <td><code>generate_responses.py</code></td>
+          <td>Calls OpenRouter API to produce rollouts and resamples. Handles chunking, embedding, and property checking on generation.</td>
+          <td><span class="tag tag-accent">API</span> <span class="tag tag-cyan">async</span></td>
+        </tr>
+        <tr>
+          <td><strong>Clustering</strong></td>
+          <td><code>base.py</code><br><code>sentence_then_llm_clusterer.py</code></td>
+          <td>Two-stage clustering: (1) sentence-transformer embeddings + agglomerative clustering, (2) optional LLM-guided merging via Leiden algorithm. Calculates entropy and similarity for each cluster.</td>
+          <td><span class="tag tag-green">ML</span> <span class="tag tag-accent">core</span></td>
+        </tr>
+        <tr>
+          <td><strong>Flowchart</strong></td>
+          <td><code>flowchart_generator.py</code><br><code>graphviz_generator.py</code></td>
+          <td>Builds JSON graph from clusters: nodes (cluster metadata), edges (rollout paths), response nodes (final answers). Uses pygraphviz for 2D layout.</td>
+          <td><span class="tag tag-amber">graph</span> <span class="tag tag-accent">core</span></td>
+        </tr>
+        <tr>
+          <td><strong>Labeling</strong></td>
+          <td><code>generate_algorithms.py</code><br><code>cluster_labeler.py</code></td>
+          <td>Discovers distinct solution strategies by sending rollouts to an LLM. Extracts algorithm descriptions and keyword cues. Names clusters.</td>
+          <td><span class="tag tag-pink">LLM</span></td>
+        </tr>
+        <tr>
+          <td><strong>Predictions</strong></td>
+          <td><code>prediction_runner.py</code><br><code>utils_predictions.py</code></td>
+          <td>Predicts final answer from partial CoT by matching prefix to graph paths. Scores by frequency, entropy, and matching quality. Supports sliding-window and strict matching modes.</td>
+          <td><span class="tag tag-cyan">eval</span></td>
+        </tr>
+        <tr>
+          <td><strong>Property Checkers</strong></td>
+          <td><code>correctness.py</code><br><code>resampled.py</code><br><code>multi_algorithm.py</code></td>
+          <td>Extensible system for rollout-level properties. Automatically registered in graph visualization. Supports boolean and multi-valued labels.</td>
+          <td><span class="tag tag-green">extensible</span></td>
+        </tr>
+        <tr>
+          <td><strong>Utilities</strong></td>
+          <td><code>model_utils.py</code><br><code>prompt_utils.py</code><br><code>file_utils.py</code><br><code>config_manager.py</code></td>
+          <td>Model configuration registry (token parsing, providers). Prompt-specific answer validators. Standardized path management. Hydra config integration.</td>
+          <td><span class="tag tag-accent">infra</span></td>
+        </tr>
+        <tr>
+          <td><strong>Chunking</strong></td>
+          <td><code>chunking.py</code></td>
+          <td>Splits CoT text into semantic chunks. Sentence splitting on punctuation/newlines, then optional LLM-guided merging of related fragments.</td>
+          <td><span class="tag tag-pink">NLP</span></td>
+        </tr>
+        <tr>
+          <td><strong>Graph Service</strong></td>
+          <td><code>app.py</code></td>
+          <td>FastAPI microservice that computes 2D graph layouts using pygraphviz. Caches results. Falls back to random layout if graphviz unavailable.</td>
+          <td><span class="tag tag-amber">service</span></td>
+        </tr>
+        <tr>
+          <td><strong>Frontend</strong></td>
+          <td><code>GraphizVisualization.tsx</code><br><code>GraphizControls.tsx</code><br><code>AlgorithmStructure.tsx</code><br>+ 27 more</td>
+          <td>Next.js + D3.js interactive visualization. Select rollouts, color by property, zoom/pan, view rollout details. Deployed to Vercel. API routes serve flowchart JSON.</td>
+          <td><span class="tag tag-cyan">D3.js</span> <span class="tag tag-accent">Next.js</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- PIPELINE                                      -->
+<!-- ════════════════════════════════════════════ -->
+<section id="pipeline">
+  <div class="section-label">End-to-end</div>
+  <h2>Pipeline Flow</h2>
+  <p class="section-desc">
+    Six commands that chain together. Each writes JSON consumed by the next stage.
+  </p>
+
+  <div class="pipeline">
+    <div class="pipeline-step">
+      <div class="pipeline-dot" style="background:var(--accent-glow); border-color:var(--accent); color:var(--accent2);">1</div>
+      <div class="pipeline-content">
+        <h4><code>rollouts</code> &mdash; Generate Reasoning Traces</h4>
+        <p>Calls OpenRouter API with the target model. For each seed, captures CoT tokens and final response. Parses model-specific thought/response delimiters. Chunks text, computes sentence embeddings, runs property checkers. Saves per-seed JSON to <code>prompts/{prompt}/{model}/rollouts/</code>.</p>
+      </div>
+    </div>
+
+    <div class="pipeline-step">
+      <div class="pipeline-dot" style="background:rgba(52,211,153,0.1); border-color:var(--green); color:var(--green);">2</div>
+      <div class="pipeline-content">
+        <h4><code>resamples</code> &mdash; Prefix Continuations</h4>
+        <p>Takes partial CoT prefixes and generates fresh continuations. Tests how the model completes reasoning from different starting points. Used to overlay resample traces on the semantic graph.</p>
+      </div>
+    </div>
+
+    <div class="pipeline-step">
+      <div class="pipeline-dot" style="background:rgba(251,191,36,0.1); border-color:var(--amber); color:var(--amber);">3</div>
+      <div class="pipeline-content">
+        <h4><code>flowcharts</code> &mdash; Build Semantic Graph</h4>
+        <p><strong>Stage 1:</strong> Embed all chunks with <code>paraphrase-mpnet-base-v2</code>, build cosine similarity matrix, agglomerative clustering at threshold 0.75.
+        <br><strong>Stage 2 (optional):</strong> LLM-guided merge of similar clusters via Leiden algorithm.
+        <br><strong>Graph:</strong> Nodes = clusters (frequency, entropy, representative sentences). Edges = consecutive cluster transitions across rollouts. Response nodes = final answers.</p>
+      </div>
+    </div>
+
+    <div class="pipeline-step">
+      <div class="pipeline-dot" style="background:rgba(34,211,238,0.1); border-color:var(--cyan); color:var(--cyan);">4</div>
+      <div class="pipeline-content">
+        <h4><code>cues</code> + <code>properties</code> &mdash; Algorithm Discovery</h4>
+        <p>Sends sampled rollouts to an LLM to identify distinct solution strategies. Extracts algorithm descriptions and keyword cues. The <code>multi_algorithm</code> property checker labels each rollout with detected strategies. All properties auto-register in the visualization.</p>
+      </div>
+    </div>
+
+    <div class="pipeline-step">
+      <div class="pipeline-dot" style="background:rgba(244,114,182,0.1); border-color:var(--pink); color:var(--pink);">5</div>
+      <div class="pipeline-content">
+        <h4><code>predictions</code> &mdash; Partial-CoT Prediction</h4>
+        <p>For each prefix, matches against the semantic graph using subsequence alignment. Scores candidate rollouts by matching quality weighted by cluster entropy. Aggregates to predict final answer. Outperforms naive baselines.</p>
+      </div>
+    </div>
+
+    <div class="pipeline-step">
+      <div class="pipeline-dot" style="background:rgba(99,102,241,0.1); border-color:var(--accent2); color:var(--accent2);">6</div>
+      <div class="pipeline-content">
+        <h4><code>npm run dev</code> &mdash; Interactive Visualization</h4>
+        <p>Next.js + D3.js frontend. Loads flowchart JSON, renders interactive graph with zoom/pan. Select individual rollouts to trace their path. Color rollouts by any property (correctness, algorithm, eval-awareness). Deployed to Vercel at <code>cot-clustering.vercel.app</code>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- MODELS & CONFIG                               -->
+<!-- ════════════════════════════════════════════ -->
+<section id="models">
+  <div class="section-label">Models &amp; Configuration</div>
+  <h2>Supported Models</h2>
+  <p class="section-desc">
+    Each model has a <code>ModelConfig</code> entry specifying its OpenRouter endpoint, thought/response token delimiters, and provider.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Model Key</th>
+          <th>Provider</th>
+          <th>CoT Tokens</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>gpt-oss-20b</code></td>
+          <td>wandb</td>
+          <td><code>&lt;|channel|&gt;analysis</code> / <code>&lt;|message|&gt;</code></td>
+          <td>Custom token parsing</td>
+        </tr>
+        <tr>
+          <td><code>claude-opus-4-20250514</code></td>
+          <td>anthropic</td>
+          <td><code>&lt;think&gt;</code> / <code>&lt;/think&gt;</code></td>
+          <td>Extended thinking</td>
+        </tr>
+        <tr>
+          <td><code>claude-sonnet-4.5</code></td>
+          <td>anthropic</td>
+          <td><code>&lt;think&gt;</code> / <code>&lt;/think&gt;</code></td>
+          <td>Extended thinking</td>
+        </tr>
+        <tr>
+          <td><code>claude-sonnet-3.7</code></td>
+          <td>anthropic</td>
+          <td><code>&lt;think&gt;</code> / <code>&lt;/think&gt;</code></td>
+          <td>Extended thinking</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Hydra Configuration System</h3>
+  <p class="section-desc">
+    Four composable config types that combine into per-prompt experiment configs.
+  </p>
+
+  <div class="card-grid">
+    <div class="card">
+      <h4><code>configs/r/</code> &mdash; Response</h4>
+      <p><code>num_seeds_rollouts</code>: 50<br><code>num_seeds_prefixes</code>: 10<br><code>max_workers</code>: 250</p>
+    </div>
+    <div class="card">
+      <h4><code>configs/f/</code> &mdash; Flowchart</h4>
+      <p><code>sentence_similarity_threshold</code>: 0.75<br><code>llm_model</code>: gpt-4o-mini<br><code>gamma</code>: 0.5<br><code>embedding</code>: paraphrase-mpnet-base-v2</p>
+    </div>
+    <div class="card">
+      <h4><code>configs/p/</code> &mdash; Predictions</h4>
+      <p><code>top_rollouts</code>: 20<br><code>beta</code>: 0 (entropy-weighted)<br><code>strict</code>: false<br><code>sliding</code>: true</p>
+    </div>
+    <div class="card">
+      <h4><code>configs/a/</code> &mdash; Algorithms</h4>
+      <p><code>num_rollouts_to_study</code>: 50</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- VISUALIZATION                                 -->
+<!-- ════════════════════════════════════════════ -->
+<section id="visualization">
+  <div class="section-label">Visualization</div>
+  <h2>Interactive Graph Explorer</h2>
+  <p class="section-desc">
+    The frontend renders semantic and algorithm graphs with full interactivity.
+    Color rollouts by any property checker to investigate model behaviors.
+  </p>
+
+  <div class="img-card">
+    <img src="image.png" alt="Example semantic clustering graph colored by eval-awareness property">
+    <div class="img-caption">
+      Semantic clustering graph: blue traces = evaluation-aware rollouts, red = not evaluation-aware. Node size indicates frequency. <code>START</code> node (black) marks the beginning; green node marks the correct answer.
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <h4>Frontend Stack</h4>
+      <p>Next.js 14 + D3.js. 30 TypeScript files. Vercel deployment with static flowchart JSON in <code>flowcharts_public/</code>. Local dev auto-detects and serves from <code>flowcharts/</code>.</p>
+    </div>
+    <div class="card">
+      <h4>Key Components</h4>
+      <p>
+        <code>GraphizVisualization</code> &mdash; Main D3 renderer<br>
+        <code>GraphizControls</code> &mdash; Zoom, filter, color-by<br>
+        <code>GraphizRolloutPanel</code> &mdash; Rollout detail sidebar<br>
+        <code>AlgorithmStructure</code> &mdash; Strategy-level view<br>
+        <code>GraphizLegend</code> &mdash; Property color legend
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- EXTENSIBILITY                                 -->
+<!-- ════════════════════════════════════════════ -->
+<section id="extensibility">
+  <div class="section-label">Extensibility</div>
+  <h2>How Hard Is It to Generate Clustered Graphs with a New Prompt/Model?</h2>
+  <p class="section-desc">
+    The system was explicitly designed for this. There are four steps, each with a clear difficulty level.
+  </p>
+
+  <div class="callout callout-green" style="margin-bottom: 2rem;">
+    <h4>TL;DR: It's straightforward.</h4>
+    <p>
+      Adding a new prompt + model and generating clustered graphs requires editing <strong>3 files</strong>
+      (a JSON, a YAML, and a Python dict) and running <strong>4 shell commands</strong>.
+      No code logic changes needed. The pipeline is designed to be config-driven.
+    </p>
+  </div>
+
+  <!-- Step-by-step -->
+  <h3>Step-by-Step Checklist</h3>
+  <div class="table-wrap" style="margin-bottom: 2rem;">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:40px">#</th>
+          <th>Step</th>
+          <th>File to Edit</th>
+          <th>Effort</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>1</strong></td>
+          <td>Add prompt text to the prompt registry</td>
+          <td><code>prompts/prompts.json</code></td>
+          <td><span class="tag tag-green">1 line</span></td>
+        </tr>
+        <tr>
+          <td><strong>2</strong></td>
+          <td>Register expected answer (for correctness checking)</td>
+          <td><code>src/utils/prompt_utils.py</code></td>
+          <td><span class="tag tag-green">1 line</span></td>
+        </tr>
+        <tr>
+          <td><strong>3</strong></td>
+          <td>Create a Hydra config for the new prompt</td>
+          <td><code>configs/my_prompt.yaml</code></td>
+          <td><span class="tag tag-green">~15 lines</span></td>
+        </tr>
+        <tr>
+          <td><strong>4</strong></td>
+          <td>If using a new model: add <code>ModelConfig</code> entry</td>
+          <td><code>src/utils/model_utils.py</code></td>
+          <td><span class="tag tag-amber">~8 lines</span></td>
+        </tr>
+        <tr>
+          <td><strong>5</strong></td>
+          <td>Run generation + clustering commands</td>
+          <td>Terminal</td>
+          <td><span class="tag tag-green">4 commands</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Commands -->
+  <div class="code-block">
+    <div class="code-block-header">Terminal &mdash; Generate graphs for a new prompt</div>
+    <pre><span class="cmt"># 1. Generate rollouts (API calls)</span>
+python -m src.main --config-name=my_prompt <span class="str">command=rollouts</span>
+
+<span class="cmt"># 2. Build semantic clustering graph</span>
+python -m src.main --config-name=my_prompt <span class="str">command=flowcharts</span>
+
+<span class="cmt"># 3. Compute graph layout (start layout server first)</span>
+<span class="kw">cd</span> graph_layout_service && uvicorn app:app --port 8010 &
+python -m src.main --config-name=my_prompt <span class="str">command=graphviz</span>
+
+<span class="cmt"># 4. (Optional) Discover algorithms + build algorithm graph</span>
+python -m src.main --config-name=my_prompt <span class="str">command=cues,properties</span> --multirun</pre>
+  </div>
+
+  <!-- Difficulty breakdown -->
+  <h3>Difficulty Breakdown</h3>
+  <ul class="checklist">
+    <li>
+      <span class="check-icon check-easy">&#10003;</span>
+      <div>
+        <strong>New prompt, existing model</strong> &mdash; Edit 2 files (prompts.json + config YAML), run commands. <em>~5 minutes of setup.</em>
+        <div class="difficulty-meter"><div class="bar filled"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+      </div>
+    </li>
+    <li>
+      <span class="check-icon check-easy">&#10003;</span>
+      <div>
+        <strong>New prompt + new model</strong> &mdash; Also add a <code>ModelConfig</code> entry in <code>model_utils.py</code>. Need to know the model's thought/response token format. <em>~10 minutes.</em>
+        <div class="difficulty-meter"><div class="bar filled"></div><div class="bar filled"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+      </div>
+    </li>
+    <li>
+      <span class="check-icon check-mod">~</span>
+      <div>
+        <strong>Tuning clustering quality</strong> &mdash; Adjust <code>sentence_similarity_threshold</code>, <code>gamma</code>, embedding model in flowchart config. May need experimentation. <em>Iterative.</em>
+        <div class="difficulty-meter"><div class="bar filled-amber"></div><div class="bar filled-amber"></div><div class="bar filled-amber"></div><div class="bar"></div><div class="bar"></div></div>
+      </div>
+    </li>
+    <li>
+      <span class="check-icon check-mod">~</span>
+      <div>
+        <strong>Custom property checker</strong> &mdash; Extend <code>PropertyChecker</code> base class, register in <code>property_runner.py</code>. Auto-appears in visualization. <em>30-60 min of code.</em>
+        <div class="difficulty-meter"><div class="bar filled-amber"></div><div class="bar filled-amber"></div><div class="bar filled-amber"></div><div class="bar"></div><div class="bar"></div></div>
+      </div>
+    </li>
+    <li>
+      <span class="check-icon check-hard">!</span>
+      <div>
+        <strong>Modifying clustering algorithm</strong> &mdash; Requires understanding the two-stage architecture in <code>sentence_then_llm_clusterer.py</code> and the Leiden algorithm integration. <em>Deep dive.</em>
+        <div class="difficulty-meter"><div class="bar filled-red"></div><div class="bar filled-red"></div><div class="bar filled-red"></div><div class="bar filled-red"></div><div class="bar"></div></div>
+      </div>
+    </li>
+    <li>
+      <span class="check-icon check-hard">!</span>
+      <div>
+        <strong>Frontend visualization changes</strong> &mdash; Requires Next.js + D3.js knowledge. 8,100 lines across 30 files. <em>Significant effort.</em>
+        <div class="difficulty-meter"><div class="bar filled-red"></div><div class="bar filled-red"></div><div class="bar filled-red"></div><div class="bar filled-red"></div><div class="bar filled-red"></div></div>
+      </div>
+    </li>
+  </ul>
+
+  <div class="callout callout-accent" style="margin-top: 2rem;">
+    <h4>Prerequisites</h4>
+    <ul>
+      <li><strong>OpenRouter API key</strong> &mdash; needed for rollout generation and LLM-based clustering/labeling</li>
+      <li><strong>Python environment</strong> &mdash; <code>uv sync</code> installs all dependencies</li>
+      <li><strong>Node.js</strong> &mdash; only for visualization (<code>npm install</code> in deployment/)</li>
+      <li><strong>graphviz</strong> (optional) &mdash; for cleaner graph layouts (falls back to random positioning)</li>
+    </ul>
+  </div>
+
+  <div class="callout callout-amber" style="margin-top: 1rem;">
+    <h4>Cost &amp; Time Considerations</h4>
+    <ul>
+      <li>50 rollouts with a reasoning model costs roughly a few dollars in API calls</li>
+      <li>Clustering Stage 2 (LLM merge) adds additional API cost via GPT-4o-mini calls</li>
+      <li>Generation is parallelized (up to 250 workers) so wall-clock time is manageable</li>
+      <li>Graph layout computation is cached after first run</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- FOOTER                                        -->
+<!-- ════════════════════════════════════════════ -->
+<footer>
+  <div>
+    <a href="https://www.lesswrong.com/posts/q9g9zuudd3Pvw2cbj/global-cot-analysis-initial-attempts-to-uncover-patterns-1">Blog Post</a>
+    &nbsp;&middot;&nbsp;
+    <a href="https://cot-clustering.vercel.app/">Live Demo</a>
+    &nbsp;&middot;&nbsp;
+    <a href="https://github.com/Centrattic/global-cot-analysis">GitHub</a>
+  </div>
+  <div>Global CoT Analysis &middot; MATS Research</div>
+</footer>
+
+</body>
+</html>
