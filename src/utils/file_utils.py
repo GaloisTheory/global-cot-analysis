@@ -47,7 +47,7 @@ class FileUtils:
     def get_graph_cache_file_path(flowchart_path: str) -> str:
         """Get path for graph layout cache file."""
         flowchart_name = Path(flowchart_path).stem
-        return f"graph_layout_service/cache/{flowchart_name}_sfdp.json"
+        return f"graph_layout_service/cache/{flowchart_name}_dot.json"
 
     @staticmethod
     def get_rollout_dir(prompt_index: str, model: str) -> str:

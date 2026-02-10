@@ -2184,6 +2184,9 @@ export default function GraphizVisualization({ data, selectedRollouts, datasetId
                     // Extract just the answer from response node ID (e.g., "response-19" -> "19")
                     return clusterId.replace('response-', '')
                 }
+                // Show anchor category if available (thought anchor clustering)
+                const anchor = (nodeData as any).anchor_category
+                if (anchor && nodeData.freq >= 5) return `${anchor} ${nodeData.freq}`
                 return nodeData.freq >= 5 ? nodeData.freq.toString() : ''
             })
 

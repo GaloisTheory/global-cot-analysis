@@ -1,0 +1,10 @@
+defaults:
+  - _self_
+  - r: default
+  - f: combined
+
+_name_: "faith_combined_pn37"
+prompt: "faith_combined_pn37"
+models: ["qwen3-8b"]
+property_checkers: ["correctness", "condition", "unfaithful"]
+command: "flowcharts"

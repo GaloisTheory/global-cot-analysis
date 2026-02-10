@@ -67,6 +67,20 @@ class GraphvizGenerator:
                 int_to_cluster_key[next_int_id] = response_node
                 next_int_id += 1
 
+            # Compute per-cluster cued ratio for y-axis ordering
+            cluster_cued_count = {}
+            cluster_total_count = {}
+            for seed, rollout_info in flowchart["responses"].items():
+                condition = rollout_info.get("condition", "")
+                is_cued = 1 if condition == "cued" else 0
+                visited_clusters = set()
+                for edge in rollout_info.get("edges", []):
+                    for node_key in (edge["node_a"], edge["node_b"]):
+                        if node_key.startswith("cluster-") and node_key not in visited_clusters:
+                            visited_clusters.add(node_key)
+                            cluster_cued_count[node_key] = cluster_cued_count.get(node_key, 0) + is_cued
+                            cluster_total_count[node_key] = cluster_total_count.get(node_key, 0) + 1
+
             nodes_payload = []
             special_nodes = {"START"} | response_nodes
 
@@ -75,12 +89,15 @@ class GraphvizGenerator:
                 if cluster_key not in special_nodes:
                     node_data = node_obj[cluster_key]
                     int_id = cluster_key_to_int[cluster_key]
-                    nodes_payload.append({"id": str(int_id), "freq": node_data["freq"]})
+                    total = cluster_total_count.get(cluster_key, 1)
+                    cued = cluster_cued_count.get(cluster_key, 0)
+                    sort_value = cued / total if total > 0 else 0.5
+                    nodes_payload.append({"id": str(int_id), "freq": node_data["freq"], "sort_value": sort_value})
 
-            nodes_payload.append({"id": str(cluster_key_to_int["START"]), "freq": 0})
+            nodes_payload.append({"id": str(cluster_key_to_int["START"]), "freq": 0, "sort_value": 0.5})
 
             for response_node in sorted(response_nodes):
-                nodes_payload.append({"id": str(cluster_key_to_int[response_node]), "freq": 0})
+                nodes_payload.append({"id": str(cluster_key_to_int[response_node]), "freq": 0, "sort_value": 0.5})
 
             edges_payload = []
             edge_keys = set()

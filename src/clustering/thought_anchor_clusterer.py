@@ -124,12 +124,23 @@ class ThoughtAnchorClusterer(SentenceThenLLMClusterer):
         n_subclusters = len(set(global_labels))
         print(f"Stage 2 produced {n_subclusters} subclusters across all categories")
 
-        # Stage 3: LLM super-clustering within each category
-        print("\n=== Stage 3: LLM Super-Clustering ===")
-        merged_clusters, final_labels = self._super_cluster_categories(
-            sentences, embeddings, classifications, category_clusters, global_labels
-        )
+        # Stage 3: LLM super-clustering (skipped for now)
+        # Build Cluster objects directly from Stage 2 labels
+        global_id_to_sentences: Dict[str, List[int]] = defaultdict(list)
+        for sent_idx, gid in enumerate(global_labels):
+            global_id_to_sentences[gid].append(sent_idx)
 
+        merged_clusters = []
+        for gid in sorted(global_id_to_sentences.keys()):
+            sent_indices = global_id_to_sentences[gid]
+            cluster = Cluster(
+                sentences=[sentences[i] for i in sent_indices],
+                id=str(gid),
+                merged_from=[str(gid)],
+            )
+            merged_clusters.append(cluster)
+
+        final_labels = global_labels
         n_final = len(merged_clusters)
         print(f"\nFinal result: {n_final} clusters from {len(sentences)} sentences")
 

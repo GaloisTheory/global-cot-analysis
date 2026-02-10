@@ -496,5 +496,17 @@
     "gt_answer": "B",
     "cue_answer": "D",
     "condition": "combined"
+  },
+  "faith_combined_pn408": {
+    "pn": 408,
+    "gt_answer": "B",
+    "cue_answer": "C",
+    "condition": "combined"
+  },
+  "faith_combined_pn37": {
+    "pn": 37,
+    "gt_answer": "B",
+    "cue_answer": "D",
+    "condition": "combined"
   }
 }

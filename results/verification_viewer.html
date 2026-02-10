@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unfaithfulness Verification Results</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --orange: #d29922;
+    --purple: #bc8cff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 24px;
+  }
+
+  .header { margin-bottom: 24px; }
+  .header h1 { font-size: 22px; font-weight: 600; }
+  .header .subtitle { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+
+  /* Aggregate cards */
+  .agg-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .agg-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    min-width: 150px;
+    flex: 1;
+  }
+  .agg-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 4px; }
+  .agg-card .value { font-size: 24px; font-weight: 700; }
+  .agg-card .value.green { color: var(--green); }
+  .agg-card .value.red { color: var(--red); }
+  .agg-card .value.orange { color: var(--orange); }
+  .agg-card .value.accent { color: var(--accent); }
+  .agg-card .detail { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .controls label { font-size: 12px; color: var(--text-muted); }
+  .controls select, .controls input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 4px 8px;
+    font-size: 13px;
+  }
+  .controls select:focus, .controls input:focus { border-color: var(--accent); outline: none; }
+
+  /* Table */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+  th {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 2px solid var(--border);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+  }
+  th:hover { color: var(--accent); }
+  th.sorted-asc::after { content: ' \u25b2'; color: var(--accent); }
+  th.sorted-desc::after { content: ' \u25bc'; color: var(--accent); }
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tr:hover { background: rgba(88,166,255,0.04); }
+  tr.high-gap { background: rgba(248,81,73,0.05); }
+  tr.high-gap:hover { background: rgba(248,81,73,0.1); }
+
+  .answer-badge {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    line-height: 22px;
+    text-align: center;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 12px;
+  }
+  .badge-green { background: rgba(63,185,80,0.15); color: var(--green); }
+  .badge-red { background: rgba(248,81,73,0.15); color: var(--red); }
+
+  .bar-inline {
+    display: inline-flex;
+    height: 16px;
+    border-radius: 3px;
+    overflow: hidden;
+    width: 100px;
+    vertical-align: middle;
+  }
+  .bar-seg {
+    height: 100%;
+    min-width: 0;
+  }
+
+  .pct { font-weight: 600; }
+  .pct.green { color: var(--green); }
+  .pct.red { color: var(--red); }
+  .pct.orange { color: var(--orange); }
+  .pct.muted { color: var(--text-muted); }
+
+  .link-btn {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 12px;
+  }
+  .link-btn:hover { text-decoration: underline; }
+
+  .status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 4px;
+  }
+  .dot-complete { background: var(--green); }
+  .dot-partial { background: var(--orange); }
+
+  .kbd-hint {
+    position: fixed;
+    bottom: 12px;
+    right: 16px;
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Unfaithfulness Verification Results</h1>
+  <div class="subtitle" id="subtitle">Loading...</div>
+</div>
+
+<div class="agg-row" id="agg-row"></div>
+
+<div class="controls">
+  <label>Sort:</label>
+  <select id="sort-select" onchange="renderTable()">
+    <option value="pn">Problem #</option>
+    <option value="gap-desc" selected>Gap (high to low)</option>
+    <option value="gap-asc">Gap (low to high)</option>
+    <option value="uf-desc">Unfaith rate (high to low)</option>
+    <option value="n-desc">Rollouts (most)</option>
+  </select>
+  <label>Filter:</label>
+  <select id="filter-select" onchange="renderTable()">
+    <option value="all">All questions</option>
+    <option value="high-gap">Gap &ge; 15%</option>
+    <option value="low-gap">Gap &lt; 15%</option>
+    <option value="complete">Complete (50/50)</option>
+    <option value="partial">Partial rollouts</option>
+  </select>
+  <label>Min gap:</label>
+  <input type="range" id="min-gap" min="0" max="100" value="0" style="width:100px" oninput="document.getElementById('min-gap-val').textContent=this.value+'%'; renderTable()">
+  <span id="min-gap-val" style="font-size:12px;color:var(--text-muted);min-width:30px">0%</span>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead id="thead"></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<div class="kbd-hint">Click column headers to sort &middot; Click pn to open rollout viewer</div>
+
+<script>
+let data = null;
+let sortCol = 'gap';
+let sortDir = 'desc';
+
+async function loadData() {
+  const resp = await fetch('unfaithfulness_verification_all.json');
+  data = await resp.json();
+  renderAgg();
+  renderTable();
+
+  document.getElementById('subtitle').textContent =
+    `${data.model} \u00b7 ${data.n_questions} questions analyzed \u00b7 ${data.n_skipped} skipped (no rollouts)`;
+}
+
+function renderAgg() {
+  const qs = data.per_question;
+  const gaps = qs.map(q => q.cue_response_gap);
+  const ufRates = qs.map(q => q.unfaithfulness.unfaithfulness_rate).filter(r => r !== null);
+  const highGap = qs.filter(q => q.cue_response_gap >= data.gap_threshold);
+  const totalRollouts = qs.reduce((s, q) => s + q.uncued.n_rollouts + q.cued.n_rollouts, 0);
+  const complete = qs.filter(q => q.uncued.n_rollouts === 50 && q.cued.n_rollouts === 50).length;
+
+  const meanGap = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+  const medianGap = gaps.slice().sort((a, b) => a - b)[Math.floor(gaps.length / 2)];
+  const meanUf = ufRates.length ? ufRates.reduce((a, b) => a + b, 0) / ufRates.length : 0;
+
+  document.getElementById('agg-row').innerHTML = `
+    <div class="agg-card">
+      <div class="label">Questions</div>
+      <div class="value accent">${data.n_questions}</div>
+      <div class="detail">${complete} complete, ${data.n_questions - complete} partial</div>
+    </div>
+    <div class="agg-card">
+      <div class="label">Total Rollouts</div>
+      <div class="value">${totalRollouts.toLocaleString()}</div>
+      <div class="detail">of ${data.n_questions * 100} target</div>
+    </div>
+    <div class="agg-card">
+      <div class="label">Mean Cue Gap</div>
+      <div class="value orange">${(meanGap * 100).toFixed(1)}%</div>
+      <div class="detail">median: ${(medianGap * 100).toFixed(1)}%</div>
+    </div>
+    <div class="agg-card">
+      <div class="label">High Gap (&ge;${(data.gap_threshold*100).toFixed(0)}%)</div>
+      <div class="value red">${highGap.length}/${data.n_questions}</div>
+      <div class="detail">${((highGap.length/data.n_questions)*100).toFixed(0)}% of questions</div>
+    </div>
+    <div class="agg-card">
+      <div class="label">Mean Unfaith Rate</div>
+      <div class="value green">${(meanUf * 100).toFixed(1)}%</div>
+      <div class="detail">among cue-followers</div>
+    </div>
+  `;
+}
+
+function getSorted() {
+  let qs = [...data.per_question];
+  const sort = document.getElementById('sort-select').value;
+  const filter = document.getElementById('filter-select').value;
+  const minGap = parseInt(document.getElementById('min-gap').value) / 100;
+
+  // Filter
+  if (filter === 'high-gap') qs = qs.filter(q => q.cue_response_gap >= data.gap_threshold);
+  else if (filter === 'low-gap') qs = qs.filter(q => q.cue_response_gap < data.gap_threshold);
+  else if (filter === 'complete') qs = qs.filter(q => q.uncued.n_rollouts === 50 && q.cued.n_rollouts === 50);
+  else if (filter === 'partial') qs = qs.filter(q => q.uncued.n_rollouts < 50 || q.cued.n_rollouts < 50);
+
+  qs = qs.filter(q => q.cue_response_gap >= minGap);
+
+  // Sort
+  if (sort === 'pn') qs.sort((a, b) => a.pn - b.pn);
+  else if (sort === 'gap-desc') qs.sort((a, b) => b.cue_response_gap - a.cue_response_gap);
+  else if (sort === 'gap-asc') qs.sort((a, b) => a.cue_response_gap - b.cue_response_gap);
+  else if (sort === 'uf-desc') qs.sort((a, b) => (b.unfaithfulness.unfaithfulness_rate||0) - (a.unfaithfulness.unfaithfulness_rate||0));
+  else if (sort === 'n-desc') qs.sort((a, b) => (b.uncued.n_rollouts + b.cued.n_rollouts) - (a.uncued.n_rollouts + a.cued.n_rollouts));
+
+  return qs;
+}
+
+function pctClass(val, thresholds) {
+  if (val >= (thresholds[1] || 0.5)) return 'red';
+  if (val >= (thresholds[0] || 0.15)) return 'orange';
+  return 'muted';
+}
+
+function makeBar(pGt, pCue) {
+  const other = Math.max(0, 1 - pGt - pCue);
+  return `<span class="bar-inline">
+    <span class="bar-seg" style="width:${(pGt*100).toFixed(0)}%;background:var(--green)"></span>
+    <span class="bar-seg" style="width:${(pCue*100).toFixed(0)}%;background:var(--red)"></span>
+    <span class="bar-seg" style="width:${(other*100).toFixed(0)}%;background:var(--border)"></span>
+  </span>`;
+}
+
+function renderTable() {
+  const qs = getSorted();
+
+  document.getElementById('thead').innerHTML = `<tr>
+    <th>pn</th>
+    <th>GT</th>
+    <th>Cue</th>
+    <th>n (u/c)</th>
+    <th>Uncued dist</th>
+    <th>p_gt_u</th>
+    <th>p_cue_u</th>
+    <th>Cued dist</th>
+    <th>p_gt_c</th>
+    <th>p_cue_c</th>
+    <th>Gap</th>
+    <th>Cue follows</th>
+    <th>Unfaith rate</th>
+    <th>Kw hits</th>
+    <th></th>
+  </tr>`;
+
+  let html = '';
+  for (const q of qs) {
+    const isHigh = q.cue_response_gap >= data.gap_threshold;
+    const isComplete = q.uncued.n_rollouts === 50 && q.cued.n_rollouts === 50;
+    const uf = q.unfaithfulness;
+    const ufRate = uf.unfaithfulness_rate;
+    const kwTotal = Object.values(uf.keyword_hits).reduce((a, b) => a + b, 0);
+
+    html += `<tr class="${isHigh ? 'high-gap' : ''}">
+      <td><a class="link-btn" href="viewer.html?pn=${q.pn}" target="_blank">${q.pn}</a></td>
+      <td><span class="answer-badge badge-green">${q.gt_answer}</span></td>
+      <td><span class="answer-badge badge-red">${q.cue_answer}</span></td>
+      <td>
+        <span class="status-dot ${isComplete ? 'dot-complete' : 'dot-partial'}"></span>
+        ${q.uncued.n_rollouts}/${q.cued.n_rollouts}
+      </td>
+      <td>${makeBar(q.uncued.p_gt, q.uncued.p_cue)}</td>
+      <td><span class="pct green">${(q.uncued.p_gt*100).toFixed(0)}%</span></td>
+      <td><span class="pct muted">${(q.uncued.p_cue*100).toFixed(0)}%</span></td>
+      <td>${makeBar(q.cued.p_gt, q.cued.p_cue)}</td>
+      <td><span class="pct green">${(q.cued.p_gt*100).toFixed(0)}%</span></td>
+      <td><span class="pct red">${(q.cued.p_cue*100).toFixed(0)}%</span></td>
+      <td><span class="pct ${pctClass(q.cue_response_gap, [0.15, 0.5])}" style="font-size:14px">${(q.cue_response_gap*100).toFixed(0)}%</span></td>
+      <td>${uf.total_cue_follows} <span style="color:var(--text-muted);font-size:11px">(${uf.faithful_cue_follow}f/${uf.unfaithful_cue_follow}u)</span></td>
+      <td><span class="pct ${ufRate !== null && ufRate > 0.5 ? 'red' : ufRate !== null && ufRate > 0.2 ? 'orange' : 'muted'}">${ufRate !== null ? (ufRate*100).toFixed(0)+'%' : 'n/a'}</span></td>
+      <td style="color:var(--text-muted)">${kwTotal}</td>
+      <td><a class="link-btn" href="viewer.html?pn=${q.pn}" target="_blank">view</a></td>
+    </tr>`;
+  }
+
+  document.getElementById('tbody').innerHTML = html;
+}
+
+loadData();
+</script>
+</body>
+</html>

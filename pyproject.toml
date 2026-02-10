@@ -8,35 +8,29 @@ dependencies = [
     # Configuration management
     "hydra-core>=1.3.0",
     "omegaconf>=2.3.0",
-    
     # Machine learning and clustering
     "numpy>=1.24.0",
     "scikit-learn>=1.3.0",
     "sentence-transformers>=2.2.0",
-    
     # Graph algorithms and community detection
     "python-igraph>=0.11.0",
     "leidenalg>=0.9.0",
-    
     # Parallel processing and utilities
     "joblib>=1.3.0",
     "tqdm>=4.65.0",
     "psutil>=5.9.0",
-    
     # API and HTTP
     "requests>=2.31.0",
     "fastapi>=0.100.0",
     "uvicorn[standard]>=0.23.0",
-    
     # Data formats
     "pyyaml>=6.0",
     "python-dotenv>=1.0.0",
-    
     # Graph visualization (note: requires system Graphviz libraries)
     # "pygraphviz>=1.11",
-    
     # Pydantic for FastAPI models
     "pydantic>=2.0.0",
+    "pygraphviz>=1.11",
 ]
 
 [project.optional-dependencies]
@@ -66,5 +60,6 @@ select = ["E", "F", "I", "N", "W"]
 
 [dependency-groups]
 dev = [
+    "matplotlib>=3.7.5",
     "pytest>=8.3.5",
 ]

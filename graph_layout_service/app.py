@@ -19,6 +19,7 @@ except ImportError:
 class NodeIn(BaseModel):
     id: str
     freq: int
+    sort_value: float = 0.5
 
 
 class EdgeIn(BaseModel):
@@ -100,8 +101,81 @@ def _generate_random_layout(req: LayoutRequest) -> Dict[str, Dict[str, float]]:
     return raw_positions
 
 
+def _generate_bfs_layout(req: LayoutRequest) -> Dict[str, Dict[str, float]]:
+    """BFS-distance layout: x = hop distance from START, y = spread within level.
+
+    Uses undirected adjacency because graphviz_generator.py deduplicates edges
+    with min/max keys (effectively undirected). BFS from the node with most
+    outgoing edges (heuristic for START) to assign distance-based x-coordinates.
+    """
+    # Build undirected adjacency
+    adj: Dict[str, List[str]] = defaultdict(list)
+    out_degree: Dict[str, int] = defaultdict(int)
+    for e in req.edges:
+        adj[e.source].append(e.target)
+        adj[e.target].append(e.source)
+        out_degree[e.source] += 1
+
+    # Find START: node with highest out-degree and zero freq (freq=0 for special nodes)
+    freq_map = {n.id: n.freq for n in req.nodes}
+    special_nodes = [n.id for n in req.nodes if n.freq == 0]
+    # Among freq=0 nodes, pick the one with highest out-degree (START fans out to many clusters)
+    start = max(special_nodes, key=lambda nid: out_degree.get(nid, 0)) if special_nodes else None
+
+    # BFS from START (or all freq=0 nodes if no clear START)
+    dist: Dict[str, int] = {}
+    queue = deque()
+    if start:
+        dist[start] = 0
+        queue.append(start)
+    else:
+        for n in req.nodes:
+            if out_degree.get(n.id, 0) > 0 and n.id not in dist:
+                dist[n.id] = 0
+                queue.append(n.id)
+
+    while queue:
+        node = queue.popleft()
+        for neighbor in adj[node]:
+            if neighbor not in dist:
+                dist[neighbor] = dist[node] + 1
+                queue.append(neighbor)
+
+    # Assign unreachable nodes to max_level + 1
+    max_level = max(dist.values()) if dist else 0
+    for n in req.nodes:
+        if n.id not in dist:
+            dist[n.id] = max_level + 1
+
+    # Pin response/answer nodes (freq=0, not START) to the far right
+    response_nodes = {n.id for n in req.nodes if n.freq == 0 and n.id != start}
+    max_level = max(dist.values()) if dist else 0
+    answer_level = max_level + 1
+    for nid in response_nodes:
+        dist[nid] = answer_level
+
+    # Group by level, sort y by sort_value (low=uncued/top, high=cued/bottom)
+    sort_map = {n.id: n.sort_value for n in req.nodes}
+    levels: Dict[int, List[str]] = defaultdict(list)
+    for nid, d in dist.items():
+        levels[d].append(nid)
+
+    max_level = max(levels.keys()) if levels else 1
+    raw_positions: Dict[str, Dict[str, float]] = {}
+    for level, nids in levels.items():
+        x = level / max(max_level, 1)
+        # Sort by sort_value: low values (uncued) at top, high values (cued) at bottom
+        nids_sorted = sorted(nids, key=lambda nid: sort_map.get(nid, 0.5))
+        for i, nid in enumerate(nids_sorted):
+            y = (i + 0.5) / len(nids_sorted) if len(nids_sorted) > 1 else 0.5
+            y += random.uniform(-0.01, 0.01)
+            raw_positions[nid] = {"x": x, "y": y}
+
+    return raw_positions
+
+
 def _generate_pygraphviz_layout(req: LayoutRequest) -> Dict[str, Dict[str, float]]:
-    graph = pgv.AGraph(strict=False, directed=True)
+    graph = pgv.AGraph(strict=False, directed=False)
 
     for n in req.nodes:
         graph.add_node(n.id)
@@ -124,37 +198,7 @@ def _generate_pygraphviz_layout(req: LayoutRequest) -> Dict[str, Dict[str, float
             if deg == 0:
                 graph.add_edge("START", nid, style="invis")
 
-    # BFS from roots to compute rank levels for dot layout
-    fwd: Dict[str, List[str]] = defaultdict(list)
-    incoming: Dict[str, int] = defaultdict(int)
-    for e in req.edges:
-        fwd[e.source].append(e.target)
-        incoming[e.target] += 1
-
-    # Root nodes = no incoming edges (START should be among them)
-    roots = [n.id for n in req.nodes if incoming[n.id] == 0]
-
-    dist: Dict[str, int] = {}
-    queue = deque()
-    for r in roots:
-        dist[r] = 0
-        queue.append(r)
-    while queue:
-        node = queue.popleft()
-        for neighbor in fwd[node]:
-            if neighbor not in dist:
-                dist[neighbor] = dist[node] + 1
-                queue.append(neighbor)
-
-    # Group nodes by distance level → rank=same subgraphs
-    levels: Dict[int, List[str]] = defaultdict(list)
-    for nid, d in dist.items():
-        levels[d].append(nid)
-    for level, nids in sorted(levels.items()):
-        sg = graph.add_subgraph(nids, name=f"rank_{level}")
-        sg.graph_attr["rank"] = "same"
-
-    graph.graph_attr.update(overlap="true", rankdir="LR")
+    graph.graph_attr.update(overlap="true")
     graph.layout(prog=req.options.engine)
 
     raw_positions: Dict[str, Dict[str, float]] = {}
@@ -181,7 +225,9 @@ def graph_layout(req: LayoutRequest) -> Dict[str, Dict]:
     if cached and "positions_norm" in cached:
         positions_norm = cached["positions_norm"]
     else:
-        if HAS_PYGRAPHVIZ:
+        if req.options.engine == "dot":
+            raw_positions = _generate_bfs_layout(req)
+        elif HAS_PYGRAPHVIZ:
             raw_positions = _generate_pygraphviz_layout(req)
         else:
             raw_positions = _generate_random_layout(req)
