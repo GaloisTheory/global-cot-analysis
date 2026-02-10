@@ -150,6 +150,7 @@ PROMPT_FILTERS = {
     "string_filter_example": StringFilter(["yes", "Yes", "YES"], ["no", "No", "NO"]),
     "faith_uncued": MCQFilter("C"),
     "faith_cued": MCQFilter("C"),
+    "faith_combined": MCQFilter("C"),
 }
 
 # Registry of reasoning effort per prompt (defaults to "minimal")
