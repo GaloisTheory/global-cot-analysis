@@ -108,7 +108,7 @@ class GraphvizGenerator:
                 "dataset_id": dataset_id or "default",
                 "nodes": nodes_payload,
                 "edges": edges_payload,
-                "options": {"engine": "sfdp", "width": 1200, "height": 800, "padding": 20},
+                "options": {"engine": "dot", "width": 1200, "height": 800, "padding": 20},
             }
 
             print(

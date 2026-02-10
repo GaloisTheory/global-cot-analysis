@@ -1,4 +1,5 @@
 from typing import Dict, List
+from collections import deque, defaultdict
 import os
 import json
 import random
@@ -100,7 +101,7 @@ def _generate_random_layout(req: LayoutRequest) -> Dict[str, Dict[str, float]]:
 
 
 def _generate_pygraphviz_layout(req: LayoutRequest) -> Dict[str, Dict[str, float]]:
-    graph = pgv.AGraph(strict=False, directed=False)
+    graph = pgv.AGraph(strict=False, directed=True)
 
     for n in req.nodes:
         graph.add_node(n.id)
@@ -123,7 +124,37 @@ def _generate_pygraphviz_layout(req: LayoutRequest) -> Dict[str, Dict[str, float
             if deg == 0:
                 graph.add_edge("START", nid, style="invis")
 
-    graph.graph_attr.update(overlap="true")
+    # BFS from roots to compute rank levels for dot layout
+    fwd: Dict[str, List[str]] = defaultdict(list)
+    incoming: Dict[str, int] = defaultdict(int)
+    for e in req.edges:
+        fwd[e.source].append(e.target)
+        incoming[e.target] += 1
+
+    # Root nodes = no incoming edges (START should be among them)
+    roots = [n.id for n in req.nodes if incoming[n.id] == 0]
+
+    dist: Dict[str, int] = {}
+    queue = deque()
+    for r in roots:
+        dist[r] = 0
+        queue.append(r)
+    while queue:
+        node = queue.popleft()
+        for neighbor in fwd[node]:
+            if neighbor not in dist:
+                dist[neighbor] = dist[node] + 1
+                queue.append(neighbor)
+
+    # Group nodes by distance level → rank=same subgraphs
+    levels: Dict[int, List[str]] = defaultdict(list)
+    for nid, d in dist.items():
+        levels[d].append(nid)
+    for level, nids in sorted(levels.items()):
+        sg = graph.add_subgraph(nids, name=f"rank_{level}")
+        sg.graph_attr["rank"] = "same"
+
+    graph.graph_attr.update(overlap="true", rankdir="LR")
     graph.layout(prog=req.options.engine)
 
     raw_positions: Dict[str, Dict[str, float]] = {}
