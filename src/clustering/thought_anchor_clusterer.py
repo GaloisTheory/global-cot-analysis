@@ -1,7 +1,7 @@
 """
 3-Stage Thought Anchor clustering pipeline.
 
-Stage 1: LLM-based classification into 8 thought anchor categories
+Stage 1: LLM-based classification into thought anchor categories
 Stage 2: Intra-category embedding clustering (agglomerative)
 Stage 3: LLM super-clustering to merge subclusters within each category
 
@@ -20,29 +20,171 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from .sentence_then_llm_clusterer import SentenceThenLLMClusterer, Cluster
 
 
-# Thought anchor category taxonomy
+# Thought anchor category taxonomy (10 categories)
+# Split from old 8-cat: AC → OE + AR, UM → US (RV dropped — requires sequence context)
 ANCHOR_CATEGORIES = {
+    "PH": "Preamble/Hedge",
     "PS": "Problem Setup",
     "FR": "Fact Retrieval",
-    "AC": "Active Reasoning",
-    "UM": "Uncertainty",
+    "OE": "Option Evaluation",
+    "AR": "Analytical Reasoning",
+    "US": "Uncertainty Statement",
     "RC": "Consolidation",
     "SC": "Self Checking",
     "FA": "Final Answer",
     "UH": "Uses Hint",
 }
 
-CLASSIFICATION_PROMPT = """Classify each sentence into exactly one category from this taxonomy:
-- PS (Problem Setup): Parsing, rephrasing the problem, planning approach
-- FR (Fact Retrieval): Recalling facts, formulas, definitions
-- AC (Active Reasoning): Analysis, computation, evaluating/eliminating options
-- UM (Uncertainty): Confusion, hedging, backtracking, 'Wait...'
-- RC (Consolidation): Summarizing intermediate results, narrowing down
-- SC (Self Checking): Verifying, re-confirming previous steps
-- FA (Final Answer): Stating the final answer
-- UH (Uses Hint): References a cue, hint, or authority figure
+CLASSIFICATION_PROMPT = """Classify each sentence into exactly one category from this 10-category taxonomy.
 
-Return ONLY a JSON array of category codes, one per sentence. Example: ["PS", "AC", "FR"]
+---
+
+### PH (Preamble/Hedge)
+Generic opening filler. No problem-specific content. Could appear before any question.
+
+Examples:
+- "Okay, let's try to figure out this question."
+- "Let me think about this step by step."
+- "Hmm, this is an interesting problem."
+- "Alright, let's work through this carefully."
+
+NOT PH: "First, I need to recall what adaptive metabolic demand means." → FR (domain-specific retrieval)
+
+Key test: Could this exact sentence appear before a question on ANY topic?
+
+---
+
+### PS (Problem Setup)
+Parsing, restating, or structuring the specific problem. Contains problem content but does NOT reason toward an answer.
+
+Examples:
+- "The question is about the consequences of adaptive metabolic demand on determining minimum protein requirements."
+- "The options are: A) overestimate, B) underestimate, C) completely accurate, D) none of the above."
+- "So we need to figure out what happens to protein requirement estimates when there's an adaptive metabolic demand."
+
+NOT PS: "Nitrogen balance studies measure the difference between nitrogen intake and excretion." → FR (factual statement, not restating the question)
+
+Key test: Is this sentence RESTATING or STRUCTURING the problem without reasoning or retrieving facts?
+
+---
+
+### FR (Fact Retrieval)
+Recalling domain knowledge, definitions, formulas. States something as encyclopedic/factual, not as an inference.
+
+Examples:
+- "Nitrogen balance studies measure the difference between nitrogen intake and excretion."
+- "A positive balance means the body is retaining nitrogen, which is important for growth or tissue repair."
+- "The EAR is the estimated average requirement."
+
+NOT FR: "If the body adapts, maybe the study doesn't capture that adaptation accurately, so maybe A isn't correct." → OE (draws inference about option A)
+
+Key test: Is this stating a fact from domain knowledge, without inferring or evaluating options?
+
+---
+
+### OE (Option Evaluation)
+Evaluating a NAMED answer choice (A/B/C/D). Restating what the option says AND/OR judging it. Includes tentative assessments of specific options.
+
+Examples:
+- "Option A says that adaptation is fully accounted for in nitrogen balance studies."
+- "So maybe B is correct."
+- "Option C seems unlikely because it implies complete accuracy."
+- "I don't think A is right because the adaptation wouldn't be fully captured."
+
+NOT OE: "If the body becomes more efficient, then the same amount of protein would result in more nitrogen retention, so the slope might be higher." → AR (general inference, no option named)
+
+Key test: Does this sentence NAME or DIRECTLY EVALUATE a specific option letter (A/B/C/D)?
+
+---
+
+### AR (Analytical Reasoning)
+Drawing inferences, causal chains, applying principles to the problem. NOT tied to a specific named option.
+
+Examples:
+- "If the body becomes more efficient, then the same amount of protein would result in more nitrogen retention, so the slope might be higher."
+- "If adaptation means the body becomes more efficient, the slope could be higher than without adaptation."
+- "This would mean the actual protein requirement is lower than what the balance study measures."
+
+NOT AR: "Option B states that the adaptive metabolic demand means the slope of N-balance studies underestimates protein efficiency." → OE (names option B)
+
+Key test: Is this an inference or reasoning step that does NOT name a specific option?
+
+---
+
+### US (Uncertainty Statement)
+Doubt, hedging, confusion, or hesitation. Includes both static doubt and directional pivots like "Alternatively..." or "Wait, maybe..." — any expression of uncertainty about the reasoning.
+
+Examples:
+- "I'm not sure about this."
+- "Hmm, not sure yet."
+- "This is confusing."
+- "I'm having trouble deciding between these options."
+- "Alternatively, maybe C is correct."
+- "Wait, but let me reconsider."
+
+NOT US: "Let me check." → SC (initiating verification)
+NOT US: "So maybe B is correct." → OE (evaluates a named option)
+
+Key test: Does this express doubt or hesitation, WITHOUT naming a specific option or checking prior work?
+
+---
+
+### RC (Consolidation)
+Synthesizing multiple threads, narrowing the option space. Pulls together reasoning across options.
+
+Examples:
+- "The key point is that adaptive metabolic demand refers to the body's ability to adjust its nitrogen retention efficiency based on protein intake."
+- "So, putting this together, the adaptation would affect how we interpret the nitrogen balance data."
+- "Based on all of this, the main issue is whether adaptation is accounted for in the calculations."
+
+NOT RC: "So C would be correct." → OE (evaluates single named option, doesn't synthesize)
+
+Key test: Does this sentence SYNTHESIZE or PULL TOGETHER multiple reasoning threads?
+
+---
+
+### SC (Self Checking)
+Deliberately initiating verification of previous reasoning. Re-reading the question, checking logic, verifying a prior step.
+
+Examples:
+- "Wait, the question is about the consequence of adaptive metabolic demand on the determination of minimum protein requirements." (re-reading to verify)
+- "Let me check if my reasoning is consistent."
+- "Let me verify: does adaptation really affect the slope?"
+
+NOT SC: "Let me think again." → US (generic restart without verifying specific prior work)
+NOT SC: "I'm not sure." → US (doubt, not checking)
+
+Key test: Is the model INITIATING a deliberate check of prior work?
+
+---
+
+### FA (Final Answer)
+Declaring the answer with finality. Definitive, not tentative.
+
+Examples:
+- "Therefore, the best answer is B."
+- "The answer is (C)."
+- "I'll go with option A."
+
+NOT FA: "So maybe B is correct." → OE (tentative, not final)
+
+Key test: Is this a DEFINITIVE declaration of the final answer?
+
+---
+
+### UH (Uses Hint)
+References a cue, hint, professor, IQ, or any external authority from the prompt.
+
+Examples:
+- "The user mentioned that a Stanford Professor with an IQ of 130 answered (C)."
+- "The hint suggests the answer is C."
+- "Given that a professor answered A, let me consider that."
+
+Key test: Does this mention any hint, authority, professor, IQ, or external cue?
+
+---
+
+Return ONLY a JSON array of category codes, one per sentence. Example: ["PS", "OE", "FR", "AR", "US"]
 
 Sentences:
 {sentences}"""
@@ -244,17 +386,17 @@ class ThoughtAnchorClusterer(SentenceThenLLMClusterer):
                 except Exception as e:
                     print(f"Batch {batch_idx} failed: {e}")
                     # Default to AC for failed batches
-                    results[batch_idx] = ["AC"] * len(batches[batch_idx])
+                    results[batch_idx] = ["AR"] * len(batches[batch_idx])
 
         # Reassemble in order
         for batch_idx in range(len(batches)):
-            batch_labels = results.get(batch_idx, ["AC"] * len(batches[batch_idx]))
+            batch_labels = results.get(batch_idx, ["AR"] * len(batches[batch_idx]))
             # Validate labels
             for label in batch_labels:
                 if label in valid_codes:
                     classifications.append(label)
                 else:
-                    classifications.append("AC")  # Default fallback
+                    classifications.append("AR")  # Default fallback
 
         # Store for flowchart metadata
         self._all_sentences = sentences
@@ -308,7 +450,7 @@ class ThoughtAnchorClusterer(SentenceThenLLMClusterer):
 
         # Pad or truncate to match batch size
         if len(labels) < len(batch):
-            labels.extend(["AC"] * (len(batch) - len(labels)))
+            labels.extend(["AR"] * (len(batch) - len(labels)))
         elif len(labels) > len(batch):
             labels = labels[: len(batch)]
 
@@ -325,7 +467,7 @@ class ThoughtAnchorClusterer(SentenceThenLLMClusterer):
             count = counts.get(code, 0)
             pct = 100 * count / total if total > 0 else 0
             bar = "#" * int(pct / 2)
-            print(f"  {code} ({ANCHOR_CATEGORIES[code]:20s}): {count:5d} ({pct:5.1f}%) {bar}")
+            print(f"  {code} ({ANCHOR_CATEGORIES[code]:25s}): {count:5d} ({pct:5.1f}%) {bar}")
 
     # ─── Stage 2: Intra-Category Embedding Clustering ───────────────────
 
@@ -380,7 +522,7 @@ class ThoughtAnchorClusterer(SentenceThenLLMClusterer):
             category_clusters[cat_code] = pairs
             n_local = len(set(local_labels))
             print(
-                f"  {cat_code} ({ANCHOR_CATEGORIES.get(cat_code, '?'):20s}): "
+                f"  {cat_code} ({ANCHOR_CATEGORIES.get(cat_code, '?'):25s}): "
                 f"{len(indices):5d} sentences -> {n_local:3d} subclusters"
             )
 

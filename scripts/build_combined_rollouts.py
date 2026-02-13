@@ -24,7 +24,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.utils.prompt_utils import MCQFilter
 
 MODEL = "qwen3-8b"
-NUM_SEEDS_PER_CONDITION = 50
 
 # Keywords that indicate the model is citing the cue (faithful cue-following)
 # Reused from verify_unfaithfulness_all.py
@@ -71,21 +70,37 @@ def main():
     parser = argparse.ArgumentParser(description="Build combined rollouts from cued + uncued conditions")
     parser.add_argument("--pn", type=int, default=499,
                         help="Problem number (default: 499 for backward compat)")
+    parser.add_argument("--num-seeds", type=int, default=50,
+                        help="Number of seeds per condition (default: 50)")
+    parser.add_argument("--uncued-prompt", type=str, default=None,
+                        help="Override uncued prompt name (default: faith_uncued_pn{pn})")
+    parser.add_argument("--cued-prompt", type=str, default=None,
+                        help="Override cued prompt name (default: faith_cued_pn{pn})")
+    parser.add_argument("--output-prompt", type=str, default=None,
+                        help="Override output prompt name (default: faith_combined_pn{pn})")
     args = parser.parse_args()
     pn = args.pn
+    num_seeds = args.num_seeds
 
-    # Determine paths based on pn
-    if pn == 499:
+    # Determine prompt names (CLI overrides or defaults)
+    if args.uncued_prompt or args.cued_prompt or args.output_prompt:
+        uncued_name = args.uncued_prompt or f"faith_uncued_pn{pn}"
+        cued_name = args.cued_prompt or f"faith_cued_pn{pn}"
+        output_name = args.output_prompt or f"faith_combined_pn{pn}"
+    elif pn == 499:
         # Original behavior: use non-suffixed directories
-        uncued_dir = Path(f"prompts/faith_uncued/{MODEL}/rollouts")
-        cued_dir = Path(f"prompts/faith_cued/{MODEL}/rollouts")
-        output_dir = Path(f"prompts/faith_combined/{MODEL}/rollouts")
-        combined_key = "faith_combined"
+        uncued_name = "faith_uncued"
+        cued_name = "faith_cued"
+        output_name = "faith_combined"
     else:
-        uncued_dir = Path(f"prompts/faith_uncued_pn{pn}/{MODEL}/rollouts")
-        cued_dir = Path(f"prompts/faith_cued_pn{pn}/{MODEL}/rollouts")
-        output_dir = Path(f"prompts/faith_combined_pn{pn}/{MODEL}/rollouts")
-        combined_key = f"faith_combined_pn{pn}"
+        uncued_name = f"faith_uncued_pn{pn}"
+        cued_name = f"faith_cued_pn{pn}"
+        output_name = f"faith_combined_pn{pn}"
+
+    uncued_dir = Path(f"prompts/{uncued_name}/{MODEL}/rollouts")
+    cued_dir = Path(f"prompts/{cued_name}/{MODEL}/rollouts")
+    output_dir = Path(f"prompts/{output_name}/{MODEL}/rollouts")
+    combined_key = output_name
 
     if not uncued_dir.exists():
         raise FileNotFoundError(f"Uncued rollouts not found: {uncued_dir}")
@@ -104,7 +119,7 @@ def main():
     unfaithful_seeds = []
 
     # Uncued: seeds 0-49
-    for seed in range(NUM_SEEDS_PER_CONDITION):
+    for seed in range(num_seeds):
         src = uncued_dir / f"{seed}.json"
         if not src.exists():
             print(f"Warning: missing uncued rollout {src}")
@@ -118,7 +133,7 @@ def main():
         count += 1
 
     # Cued: seeds 50-99
-    for seed in range(NUM_SEEDS_PER_CONDITION):
+    for seed in range(num_seeds):
         src = cued_dir / f"{seed}.json"
         if not src.exists():
             print(f"Warning: missing cued rollout {src}")
@@ -131,18 +146,18 @@ def main():
         if data["unfaithful"]:
             unfaithful_seeds.append(seed)
 
-        new_seed = seed + NUM_SEEDS_PER_CONDITION
+        new_seed = seed + num_seeds
         data["seed"] = new_seed
         data["prompt_index"] = combined_key
         (output_dir / f"{new_seed}.json").write_text(json.dumps(data, indent=2))
         count += 1
 
     print(f"Written {count} combined rollouts to {output_dir}")
-    print(f"  Uncued: seeds 0-{NUM_SEEDS_PER_CONDITION - 1}")
-    print(f"  Cued: seeds {NUM_SEEDS_PER_CONDITION}-{2 * NUM_SEEDS_PER_CONDITION - 1}")
+    print(f"  Uncued: seeds 0-{num_seeds - 1}")
+    print(f"  Cued: seeds {num_seeds}-{2 * num_seeds - 1}")
     print(f"  Cue answer: ({cue_answer}), GT answer: ({gt_answer})")
     print(f"  Unfaithful cued seeds (original): {unfaithful_seeds}")
-    print(f"  Unfaithful cued seeds (combined): {[s + NUM_SEEDS_PER_CONDITION for s in unfaithful_seeds]}")
+    print(f"  Unfaithful cued seeds (combined): {[s + num_seeds for s in unfaithful_seeds]}")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,16 @@
+_name_: "combined_chunked"
+
+num_seeds_rollouts: 100
+
+sentences_instead_of_chunks: false
+
+# Sentence clustering settings
+sentence_similarity_threshold: 0.75
+
+# LLM clustering settings
+llm_model: "google/gemini-3-flash-preview"
+llm_cluster_threshold: 0.75
+gamma: 0.5
+max_workers: 100
+
+request_delay: 0.01

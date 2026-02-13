@@ -7,7 +7,8 @@ import igraph as ig
 import leidenalg as la
 import numpy as np
 from sentence_transformers import SentenceTransformer
-from sklearn.cluster import AgglomerativeClustering
+from scipy.cluster.hierarchy import fcluster, linkage
+from scipy.spatial.distance import pdist
 import requests
 import json
 import os
@@ -1058,19 +1059,18 @@ Cluster 2:
         embeddings: np.ndarray,
         threshold: float,
     ) -> List[int]:
-        # embeddings assumed normalized already at callsite
-        S = embeddings @ embeddings.T
-        # distance matrix in float16 to reduce memory
-        D = np.clip(1.0 - S, 0.0, 2.0).astype(np.float16)
-        # ensure exact zeros on diagonal
-        np.fill_diagonal(D, np.float16(0.0))
-        h = np.float32(1.0 - threshold)
-        model = AgglomerativeClustering(
-            linkage="complete",
-            metric="precomputed",
-            distance_threshold=float(h),
-            n_clusters=None,
-            compute_full_tree="auto",
-        )
-        labels = model.fit_predict(D)
-        return list(map(int, labels))
+        # Use scipy directly to avoid sklearn's O(n^2) memory overhead.
+        # pdist computes the condensed distance matrix without allocating full NxN.
+        # Peak memory: ~n*(n-1)/2 * 8 bytes instead of ~4 * n^2 bytes.
+        n = embeddings.shape[0]
+        print(f"  Computing pairwise cosine distances ({n} items, condensed form)...")
+        dist_condensed = pdist(embeddings, metric='cosine')
+        np.clip(dist_condensed, 0.0, 2.0, out=dist_condensed)
+
+        print(f"  Running complete-linkage clustering (threshold={threshold})...")
+        Z = linkage(dist_condensed, method='complete')
+        del dist_condensed
+
+        h = 1.0 - threshold
+        labels = fcluster(Z, t=h, criterion='distance')
+        return list(map(int, labels - 1))  # fcluster is 1-indexed → 0-indexed

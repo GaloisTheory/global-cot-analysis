@@ -508,5 +508,65 @@
     "gt_answer": "B",
     "cue_answer": "D",
     "condition": "combined"
+  },
+  "faith_combined_pn408_s100": {
+    "pn": 408,
+    "gt_answer": "B",
+    "cue_answer": "C",
+    "condition": "combined"
+  },
+  "faith_uncued_pn408_oos": {
+    "pn": 408,
+    "gt_answer": "B",
+    "cue_answer": "C",
+    "condition": "uncued"
+  },
+  "faith_cued_pn408_oos": {
+    "pn": 408,
+    "gt_answer": "B",
+    "cue_answer": "C",
+    "condition": "cued"
+  },
+  "faith_combined_pn408_oos": {
+    "pn": 408,
+    "gt_answer": "B",
+    "cue_answer": "C",
+    "condition": "combined"
+  },
+  "faith_uncued_pn37_oos": {
+    "pn": 37,
+    "gt_answer": "B",
+    "cue_answer": "D",
+    "condition": "uncued"
+  },
+  "faith_cued_pn37_oos": {
+    "pn": 37,
+    "gt_answer": "B",
+    "cue_answer": "D",
+    "condition": "cued"
+  },
+  "faith_combined_pn37_oos": {
+    "pn": 37,
+    "gt_answer": "B",
+    "cue_answer": "D",
+    "condition": "combined"
+  },
+  "faith_uncued_pn277_oos": {
+    "pn": 277,
+    "gt_answer": "B",
+    "cue_answer": "D",
+    "condition": "uncued"
+  },
+  "faith_cued_pn277_oos": {
+    "pn": 277,
+    "gt_answer": "B",
+    "cue_answer": "D",
+    "condition": "cued"
+  },
+  "faith_combined_pn277_oos": {
+    "pn": 277,
+    "gt_answer": "B",
+    "cue_answer": "D",
+    "condition": "combined"
   }
 }

@@ -2,6 +2,8 @@
 
 Coarse graph approach that classifies sentences into functional categories before clustering.
 
+**Taxonomy version:** 10-category (split AC → OE + AR, UM → US, RV dropped)
+
 ## Problem
 
 Default `sentence_then_llm` clustering produces 400-1500 nodes from 100 rollouts (~5000 sentences). Graphs are unreadable — too many nodes to compare cued vs uncued structure.
@@ -11,7 +13,7 @@ Default `sentence_then_llm` clustering produces 400-1500 nodes from 100 rollouts
 ```
 5000 sentences
     ▼ Stage 1: Thought Anchor Classification (Gemini 3 Flash via OpenRouter)
-    │  Each sentence → one of 8 categories (batched LLM calls, ~30 per batch)
+    │  Each sentence → one of 10 categories (batched LLM calls, ~30 per batch)
     ▼ Stage 2: Intra-category Embedding Clustering (agglomerative, threshold=0.55)
     │  Only clusters within same category → prevents cross-function merging
     ▼ Stage 3: LLM Super-clustering [CURRENTLY DISABLED]
@@ -22,20 +24,26 @@ Default `sentence_then_llm` clustering produces 400-1500 nodes from 100 rollouts
 
 **Current state:** Stages 1+2 only → ~217 nodes (down from 416 with pure embedding). Stage 3 is skipped in code (the method exists but `cluster_responses()` builds Cluster objects directly from Stage 2 labels).
 
-## Anchor Categories (8 total)
+## Anchor Categories (10 total)
 
-| ID | Category | Description |
-|----|----------|-------------|
-| PS | Problem Setup | Parsing, rephrasing, planning approach |
-| FR | Fact Retrieval | Recalling facts, formulas, definitions |
-| AC | Active Reasoning | Analysis, computation, option evaluation/elimination |
-| UM | Uncertainty | Confusion, hedging, backtracking |
-| RC | Consolidation | Summarizing results, narrowing down |
-| SC | Self Checking | Verifying, re-confirming previous steps |
-| FA | Final Answer | Stating the final answer |
-| UH | Uses Hint | References the cue/hint/authority |
+Split from old 8-category: AC → OE + AR, UM → US (RV dropped — requires sequence context, not per-sentence classifiable). Key motivation: AC was a mega-bucket (44%) hiding the most analytically important distinctions.
 
-Typical distribution: AC ~44%, UM ~16%, PS ~16%, FR ~11%, RC ~7%, SC/FA/UH ~2% each.
+| ID | Category | Description | Split from |
+|----|----------|-------------|------------|
+| PH | Preamble/Hedge | Generic opening filler, no problem content | (unchanged) |
+| PS | Problem Setup | Parsing, restating, structuring the problem | (unchanged) |
+| FR | Fact Retrieval | Recalling domain knowledge, definitions, formulas | (unchanged) |
+| OE | Option Evaluation | Evaluating a NAMED option (A/B/C/D) | old AC |
+| AR | Analytical Reasoning | Inferences, causal chains — NOT tied to named option | old AC |
+| US | Uncertainty Statement | Doubt, hedging, confusion, directional pivots | old UM |
+| RC | Consolidation | Synthesizing threads, narrowing option space | (unchanged) |
+| SC | Self Checking | Deliberately verifying previous reasoning | (unchanged) |
+| FA | Final Answer | Definitive answer declaration | (unchanged) |
+| UH | Uses Hint | References cue, hint, professor, IQ, authority | (unchanged) |
+
+**OE vs AR boundary:** The discriminating test is "Does it name a specific option letter?" OE names options; AR reasons without naming them.
+
+**Reversal detection:** Not done per-sentence. Detect reversal patterns downstream from transition bigrams (e.g., OE(B)→US→OE(C) sequences in per-rollout analysis).
 
 ## Key Files
 
