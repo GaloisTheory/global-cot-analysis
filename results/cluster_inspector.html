@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cluster Inspector</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --orange: #d29922;
+    --purple: #bc8cff;
+    --cat-PS: #58a6ff;
+    --cat-FR: #79c0ff;
+    --cat-AC: #3fb950;
+    --cat-UM: #d29922;
+    --cat-RC: #bc8cff;
+    --cat-SC: #a5d6ff;
+    --cat-FA: #f0883e;
+    --cat-UH: #f85149;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .header h1 { font-size: 18px; font-weight: 600; white-space: nowrap; }
+  .header .file-info { color: var(--text-muted); font-size: 13px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .header .load-btn {
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .header .load-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Stats bar */
+  .stats-bar {
+    display: flex;
+    gap: 20px;
+    padding: 10px 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    align-items: center;
+    font-size: 13px;
+  }
+  .stat-group { display: flex; align-items: center; gap: 6px; }
+  .stat-label { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value { font-weight: 600; }
+  .cat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .cat-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* Main layout */
+  .main-layout {
+    display: grid;
+    grid-template-columns: 220px 1fr 1fr;
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* Sidebar filters */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 12px;
+    gap: 14px;
+  }
+  .sidebar-section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .search-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .search-input::placeholder { color: var(--text-muted); }
+
+  .cat-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12px;
+    width: 100%;
+    text-align: left;
+    transition: all 0.15s;
+  }
+  .cat-toggle.active { border-color: var(--accent); color: var(--text); }
+  .cat-toggle:hover:not(.active) { border-color: var(--text-muted); }
+
+  .slider-row { display: flex; align-items: center; gap: 6px; }
+  .slider-row input[type=range] { flex: 1; accent-color: var(--accent); }
+  .slider-row .slider-val { font-size: 12px; color: var(--text-muted); min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  .quick-chip {
+    padding: 3px 10px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.15s;
+  }
+  .quick-chip.active { border-color: var(--accent); color: var(--accent); }
+  .quick-chip:hover:not(.active) { border-color: var(--text-muted); }
+
+  /* Cluster table */
+  .table-panel {
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  thead { position: sticky; top: 0; z-index: 10; }
+  th {
+    text-align: left;
+    padding: 8px 8px;
+    background: var(--surface);
+    border-bottom: 2px solid var(--border);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+  }
+  th:hover { color: var(--accent); }
+  th.sorted-asc::after { content: ' \u25B2'; color: var(--accent); }
+  th.sorted-desc::after { content: ' \u25BC'; color: var(--accent); }
+  td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  td.wrap { white-space: normal; max-width: 280px; }
+  tr { cursor: pointer; transition: background 0.1s; }
+  tr:hover { background: rgba(88,166,255,0.06); }
+  tr.selected { background: rgba(88,166,255,0.12); }
+
+  .bar-inline {
+    display: inline-flex;
+    height: 14px;
+    border-radius: 3px;
+    overflow: hidden;
+    width: 60px;
+    vertical-align: middle;
+  }
+  .bar-seg { height: 100%; min-width: 0; }
+
+  /* Detail panel */
+  .detail-panel {
+    overflow-y: auto;
+    padding: 20px 24px;
+  }
+  .detail-panel.empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+  .detail-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .detail-title { font-size: 16px; font-weight: 600; }
+  .detail-badge {
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .detail-stats {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .detail-stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 14px;
+    min-width: 80px;
+  }
+  .detail-stat .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+  .detail-stat .value { font-size: 18px; font-weight: 700; }
+
+  .section-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    margin: 16px 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .repr-sentence {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 12px;
+    font-style: italic;
+  }
+
+  .condition-bar-wrap {
+    margin-bottom: 12px;
+  }
+  .condition-bar {
+    display: flex;
+    height: 24px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .condition-bar .seg {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    min-width: 0;
+  }
+
+  .prop-bar-wrap {
+    margin-bottom: 8px;
+  }
+  .prop-bar-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+  }
+  .prop-bar {
+    display: flex;
+    height: 18px;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .prop-bar .seg {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: #fff;
+    min-width: 0;
+  }
+
+  .sentence-list { margin-bottom: 16px; }
+  .sentence-item {
+    display: flex;
+    gap: 8px;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(48,54,61,0.5);
+    font-size: 13px;
+  }
+  .sentence-count {
+    color: var(--text-muted);
+    font-size: 11px;
+    min-width: 24px;
+    text-align: right;
+    padding-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .sentence-text { line-height: 1.5; }
+  .sentence-text mark {
+    background: rgba(88,166,255,0.25);
+    color: var(--text);
+    border-radius: 2px;
+    padding: 0 2px;
+  }
+
+  .rollout-list-detail { margin-bottom: 16px; }
+  .rollout-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    margin: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Drop zone overlay */
+  .drop-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(13,17,23,0.9);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .drop-overlay.active { display: flex; }
+  .drop-box {
+    border: 3px dashed var(--accent);
+    border-radius: 16px;
+    padding: 60px 80px;
+    text-align: center;
+  }
+  .drop-box h2 { color: var(--accent); font-size: 24px; margin-bottom: 8px; }
+  .drop-box p { color: var(--text-muted); font-size: 14px; }
+
+  /* Welcome screen */
+  .welcome {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    flex-direction: column;
+    gap: 16px;
+    grid-column: 1 / -1;
+  }
+  .welcome h2 { font-size: 20px; color: var(--text); }
+  .welcome p { color: var(--text-muted); font-size: 14px; max-width: 400px; text-align: center; }
+  .welcome .load-btn {
+    padding: 10px 24px;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 15px;
+    margin-top: 8px;
+  }
+  .welcome .load-btn:hover { background: rgba(88,166,255,0.1); }
+
+  /* Keyboard hint */
+  .kbd-hint {
+    position: fixed;
+    bottom: 8px;
+    right: 12px;
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    display: flex;
+    gap: 10px;
+    z-index: 50;
+  }
+  kbd {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-size: 10px;
+    font-family: inherit;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+  /* Loading spinner */
+  .spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<input type="file" id="file-input" accept=".json" style="display:none">
+
+<div class="header">
+  <h1>Cluster Inspector</h1>
+  <span class="file-info" id="file-info">No file loaded</span>
+  <button class="load-btn" onclick="document.getElementById('file-input').click()">Load JSON</button>
+</div>
+
+<div class="stats-bar" id="stats-bar" style="display:none"></div>
+
+<div class="main-layout" id="main-layout">
+  <div class="welcome" id="welcome">
+    <h2>Cluster Inspector</h2>
+    <p>Drag &amp; drop a flowchart JSON file here, or click the button below to browse.</p>
+    <button class="load-btn" onclick="document.getElementById('file-input').click()">Choose File</button>
+  </div>
+</div>
+
+<div class="drop-overlay" id="drop-overlay">
+  <div class="drop-box">
+    <h2>Drop flowchart JSON</h2>
+    <p>Release to load and inspect clusters</p>
+  </div>
+</div>
+
+<div class="kbd-hint" id="kbd-hint" style="display:none">
+  <span><kbd>&uarr;</kbd><kbd>&darr;</kbd> Navigate</span>
+  <span><kbd>/</kbd> Search</span>
+  <span><kbd>Esc</kbd> Deselect</span>
+</div>
+
+<script>
+// ==================== State ====================
+let flowData = null;       // raw parsed JSON
+let clusters = [];         // processed array of cluster objects
+let clusterMap = {};       // id -> cluster
+let responses = [];        // array of response objects
+let hasCategories = false;
+let categories = [];       // unique category codes
+let propertyCheckers = []; // e.g. ["correctness", "condition", "unfaithful"]
+
+// Filter/sort state
+let sortCol = 'freq';
+let sortDir = 'desc';
+let selectedId = null;
+let searchTerm = '';
+let activeCategories = new Set();
+let minFreq = 0;
+let minRollouts = 0;
+let quickFilter = null; // 'high-entropy' | 'low-similarity' | 'skewed'
+
+// Category color map
+const CAT_COLORS = {
+  PS: '#58a6ff', FR: '#79c0ff', AC: '#3fb950', UM: '#d29922',
+  RC: '#bc8cff', SC: '#a5d6ff', FA: '#f0883e', UH: '#f85149'
+};
+const CAT_NAMES = {
+  PS: 'Problem Setup', FR: 'Fact Retrieval', AC: 'Active Reasoning', UM: 'Uncertainty',
+  RC: 'Consolidation', SC: 'Self Checking', FA: 'Final Answer', UH: 'Uses Hint'
+};
+
+// ==================== File Loading ====================
+function loadFile(file) {
+  if (!file || !file.name.endsWith('.json')) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.nodes || !data.responses) {
+        alert('Invalid flowchart JSON: missing "nodes" or "responses" keys.');
+        return;
+      }
+      flowData = data;
+      processData();
+      renderAll();
+      document.getElementById('file-info').textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+    } catch (err) {
+      alert('Failed to parse JSON: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById('file-input').addEventListener('change', (e) => {
+  if (e.target.files[0]) loadFile(e.target.files[0]);
+});
+
+// Drag and drop
+let dragCounter = 0;
+document.addEventListener('dragenter', (e) => {
+  e.preventDefault();
+  dragCounter++;
+  document.getElementById('drop-overlay').classList.add('active');
+});
+document.addEventListener('dragleave', (e) => {
+  e.preventDefault();
+  dragCounter--;
+  if (dragCounter <= 0) {
+    dragCounter = 0;
+    document.getElementById('drop-overlay').classList.remove('active');
+  }
+});
+document.addEventListener('dragover', (e) => e.preventDefault());
+document.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dragCounter = 0;
+  document.getElementById('drop-overlay').classList.remove('active');
+  if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+});
+
+// ==================== Data Processing ====================
+function processData() {
+  // Parse nodes
+  clusters = [];
+  clusterMap = {};
+  flowData.nodes.forEach(nodeObj => {
+    for (const [id, data] of Object.entries(nodeObj)) {
+      const cluster = { id, ...data };
+      clusters.push(cluster);
+      clusterMap[id] = cluster;
+    }
+  });
+
+  // Detect anchor categories
+  hasCategories = clusters.some(c => c.anchor_category);
+  if (hasCategories) {
+    const catSet = new Set();
+    clusters.forEach(c => { if (c.anchor_category) catSet.add(c.anchor_category); });
+    categories = [...catSet].sort();
+    activeCategories = new Set(categories);
+  } else {
+    categories = [];
+    activeCategories = new Set();
+  }
+
+  // Parse responses
+  responses = Object.values(flowData.responses);
+
+  // Property checkers
+  propertyCheckers = flowData.property_checkers || [];
+
+  // Build per-cluster condition/property maps from responses
+  clusters.forEach(c => {
+    c._conditions = {};     // { uncued: N, cued: N }
+    c._properties = {};     // { correctness: {true: N, false: N}, ... }
+    c._responseSeeds = [];  // seeds of responses passing through this cluster
+  });
+
+  responses.forEach(resp => {
+    const visitedClusters = new Set();
+    (resp.edges || []).forEach(edge => {
+      if (edge.node_b && edge.node_b.startsWith('cluster-')) visitedClusters.add(edge.node_b);
+      if (edge.node_a && edge.node_a.startsWith('cluster-')) visitedClusters.add(edge.node_a);
+    });
+
+    visitedClusters.forEach(cid => {
+      const c = clusterMap[cid];
+      if (!c) return;
+
+      // Condition
+      const cond = resp.condition || 'unknown';
+      c._conditions[cond] = (c._conditions[cond] || 0) + 1;
+
+      // Property checkers
+      propertyCheckers.forEach(pc => {
+        if (pc === 'condition') return; // already handled
+        // unfaithful only meaningful for cued rollouts
+        if (pc === 'unfaithful' && cond !== 'cued') return;
+        if (resp[pc] !== undefined) {
+          if (!c._properties[pc]) c._properties[pc] = {};
+          const val = String(resp[pc]);
+          c._properties[pc][val] = (c._properties[pc][val] || 0) + 1;
+        }
+      });
+
+      c._responseSeeds.push(resp.seed);
+    });
+  });
+
+  // Compute total sentences per cluster
+  clusters.forEach(c => {
+    c._totalSentences = (c.sentences || []).reduce((s, sent) => s + sent.count, 0);
+  });
+
+  // Reset filters
+  sortCol = 'freq';
+  sortDir = 'desc';
+  selectedId = null;
+  searchTerm = '';
+  minFreq = 0;
+  minRollouts = 0;
+  quickFilter = null;
+}
+
+// ==================== Filtering & Sorting ====================
+function getFilteredClusters() {
+  let result = clusters.filter(c => {
+    // Category filter
+    if (hasCategories && activeCategories.size < categories.length) {
+      if (!c.anchor_category || !activeCategories.has(c.anchor_category)) return false;
+    }
+    // Min freq
+    if (c.freq < minFreq) return false;
+    // Min rollouts
+    if (c.num_rollouts < minRollouts) return false;
+    // Quick filters
+    if (quickFilter === 'high-entropy' && c.entropy < 0.9) return false;
+    if (quickFilter === 'low-similarity' && c.mean_similarity > 0.5) return false;
+    if (quickFilter === 'skewed') {
+      const total = Object.values(c._conditions).reduce((a, b) => a + b, 0);
+      if (total < 2) return false;
+      const maxVal = Math.max(...Object.values(c._conditions));
+      if (maxVal / total < 0.7) return false;
+    }
+    // Search
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      const inRepr = (c.representative_sentence || '').toLowerCase().includes(term);
+      const inSentences = (c.sentences || []).some(s => s.text.toLowerCase().includes(term));
+      const inId = c.id.toLowerCase().includes(term);
+      if (!inRepr && !inSentences && !inId) return false;
+    }
+    return true;
+  });
+
+  // Sort
+  result.sort((a, b) => {
+    let va, vb;
+    switch (sortCol) {
+      case 'id':
+        va = parseInt(a.id.replace('cluster-', ''));
+        vb = parseInt(b.id.replace('cluster-', ''));
+        break;
+      case 'category':
+        va = a.anchor_category || '';
+        vb = b.anchor_category || '';
+        return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      case 'freq': va = a.freq; vb = b.freq; break;
+      case 'rollouts': va = a.num_rollouts; vb = b.num_rollouts; break;
+      case 'entropy': va = a.entropy; vb = b.entropy; break;
+      case 'similarity': va = a.mean_similarity; vb = b.mean_similarity; break;
+      case 'sentences': va = a._totalSentences; vb = b._totalSentences; break;
+      default: va = a.freq; vb = b.freq;
+    }
+    return sortDir === 'asc' ? va - vb : vb - va;
+  });
+
+  return result;
+}
+
+// ==================== Rendering ====================
+function renderAll() {
+  renderLayout();
+  renderStatsBar();
+  renderSidebar();
+  renderTable();
+  renderDetail();
+  document.getElementById('stats-bar').style.display = 'flex';
+  document.getElementById('kbd-hint').style.display = 'flex';
+}
+
+function renderLayout() {
+  const main = document.getElementById('main-layout');
+  main.innerHTML = `
+    <div class="sidebar" id="sidebar"></div>
+    <div class="table-panel" id="table-panel"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
+    <div class="detail-panel empty-state" id="detail-panel">Click a cluster to inspect</div>
+  `;
+}
+
+function renderStatsBar() {
+  const bar = document.getElementById('stats-bar');
+  const totalSentences = clusters.reduce((s, c) => s + c._totalSentences, 0);
+
+  let catChips = '';
+  if (hasCategories) {
+    const catCounts = {};
+    clusters.forEach(c => {
+      if (c.anchor_category) catCounts[c.anchor_category] = (catCounts[c.anchor_category] || 0) + 1;
+    });
+    catChips = categories.map(cat =>
+      `<span class="cat-chip" style="background:${CAT_COLORS[cat]}22;color:${CAT_COLORS[cat]}">
+        <span class="cat-dot" style="background:${CAT_COLORS[cat]}"></span>
+        ${cat} ${catCounts[cat] || 0}
+      </span>`
+    ).join('');
+  }
+
+  const promptSnippet = flowData.prompt ? escapeHtml(flowData.prompt.slice(0, 80)) + '...' : '';
+
+  const condCounts = {};
+  responses.forEach(r => {
+    const c = r.condition || 'unknown';
+    condCounts[c] = (condCounts[c] || 0) + 1;
+  });
+  let condChips = Object.entries(condCounts).map(([c, n]) =>
+    `<span class="cat-chip" style="background:${c === 'cued' ? 'rgba(248,81,73,0.15);color:var(--red)' : c === 'uncued' ? 'rgba(63,185,80,0.15);color:var(--green)' : 'rgba(139,148,158,0.15);color:var(--text-muted)'}">${c} ${n}</span>`
+  ).join('');
+
+  bar.innerHTML = `
+    <div class="stat-group">
+      <span class="stat-label">Nodes</span>
+      <span class="stat-value" style="color:var(--accent)">${clusters.length}</span>
+    </div>
+    <div class="stat-group">
+      <span class="stat-label">Responses</span>
+      <span class="stat-value">${responses.length}</span>
+      ${condChips}
+    </div>
+    <div class="stat-group">
+      <span class="stat-label">Sentences</span>
+      <span class="stat-value">${totalSentences.toLocaleString()}</span>
+    </div>
+    <div class="stat-group">
+      <span class="stat-label">Method</span>
+      <span class="stat-value" style="font-size:12px">${flowData.clustering_method || '?'}</span>
+    </div>
+    ${catChips ? `<div class="stat-group" style="gap:4px">${catChips}</div>` : ''}
+    ${promptSnippet ? `<div class="stat-group" style="flex:1;min-width:0"><span class="stat-label">Prompt</span><span style="font-size:11px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${promptSnippet}</span></div>` : ''}
+  `;
+}
+
+function renderSidebar() {
+  const sb = document.getElementById('sidebar');
+  if (!sb) return;
+
+  let catFilters = '';
+  if (hasCategories) {
+    catFilters = `
+      <div>
+        <div class="sidebar-section-title">Categories</div>
+        ${categories.map(cat => `
+          <button class="cat-toggle ${activeCategories.has(cat) ? 'active' : ''}" data-cat="${cat}" onclick="toggleCategory('${cat}')">
+            <span class="cat-dot" style="background:${CAT_COLORS[cat]}"></span>
+            ${cat} — ${CAT_NAMES[cat] || cat}
+          </button>
+        `).join('')}
+        <div style="display:flex;gap:4px;margin-top:4px">
+          <button class="quick-chip" onclick="selectAllCategories()" style="flex:1">All</button>
+          <button class="quick-chip" onclick="selectNoCategories()" style="flex:1">None</button>
+        </div>
+      </div>
+    `;
+  }
+
+  const maxFreq = Math.max(...clusters.map(c => c.freq), 1);
+  const maxRollouts = Math.max(...clusters.map(c => c.num_rollouts), 1);
+
+  sb.innerHTML = `
+    <div>
+      <div class="sidebar-section-title">Search</div>
+      <input class="search-input" id="search-input" type="text" placeholder="Search sentences..." value="${escapeHtml(searchTerm)}" oninput="onSearch(this.value)">
+    </div>
+    ${catFilters}
+    <div>
+      <div class="sidebar-section-title">Min Frequency</div>
+      <div class="slider-row">
+        <input type="range" min="0" max="${maxFreq}" value="${minFreq}" oninput="onMinFreq(+this.value)">
+        <span class="slider-val" id="min-freq-val">${minFreq}</span>
+      </div>
+    </div>
+    <div>
+      <div class="sidebar-section-title">Min Rollouts</div>
+      <div class="slider-row">
+        <input type="range" min="0" max="${maxRollouts}" value="${minRollouts}" oninput="onMinRollouts(+this.value)">
+        <span class="slider-val" id="min-rollouts-val">${minRollouts}</span>
+      </div>
+    </div>
+    <div>
+      <div class="sidebar-section-title">Quick Filters</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">
+        <button class="quick-chip ${quickFilter === 'high-entropy' ? 'active' : ''}" onclick="setQuickFilter('high-entropy')">High entropy</button>
+        <button class="quick-chip ${quickFilter === 'low-similarity' ? 'active' : ''}" onclick="setQuickFilter('low-similarity')">Low similarity</button>
+        <button class="quick-chip ${quickFilter === 'skewed' ? 'active' : ''}" onclick="setQuickFilter('skewed')">Skewed cond.</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderTable() {
+  const filtered = getFilteredClusters();
+  const thead = document.getElementById('thead');
+  const tbody = document.getElementById('tbody');
+  if (!thead || !tbody) return;
+
+  const cols = [
+    { key: 'id', label: 'Cluster' },
+  ];
+  if (hasCategories) cols.push({ key: 'category', label: 'Cat' });
+  cols.push(
+    { key: 'freq', label: 'Freq' },
+    { key: 'rollouts', label: 'Rollouts' },
+    { key: 'entropy', label: 'Entropy' },
+    { key: 'similarity', label: 'Sim' },
+    { key: 'sentences', label: 'Sents' },
+  );
+  // Add condition bar if conditions exist
+  const hasConditions = responses.some(r => r.condition);
+  if (hasConditions) cols.push({ key: '_cond', label: 'Condition', sortable: false });
+  cols.push({ key: '_repr', label: 'Representative', sortable: false });
+
+  thead.innerHTML = '<tr>' + cols.map(col => {
+    const isSorted = sortCol === col.key;
+    const cls = isSorted ? (sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc') : '';
+    const sortable = col.sortable !== false;
+    return `<th class="${cls}" ${sortable ? `onclick="onSort('${col.key}')"` : ''}>${col.label}</th>`;
+  }).join('') + '</tr>';
+
+  let html = '';
+  filtered.forEach(c => {
+    const isSelected = c.id === selectedId;
+    const catColor = CAT_COLORS[c.anchor_category] || 'var(--text-muted)';
+
+    let condBar = '';
+    if (hasConditions) {
+      const total = Object.values(c._conditions).reduce((a, b) => a + b, 0);
+      if (total > 0) {
+        const uncued = c._conditions['uncued'] || 0;
+        const cued = c._conditions['cued'] || 0;
+        const uPct = (uncued / total * 100).toFixed(0);
+        const cPct = (cued / total * 100).toFixed(0);
+        condBar = `<span class="bar-inline">
+          <span class="bar-seg" style="width:${uPct}%;background:var(--green)" title="uncued: ${uncued}"></span>
+          <span class="bar-seg" style="width:${cPct}%;background:var(--red)" title="cued: ${cued}"></span>
+        </span>`;
+      }
+    }
+
+    html += `<tr class="${isSelected ? 'selected' : ''}" onclick="selectCluster('${c.id}')" data-id="${c.id}">
+      <td>${c.id.replace('cluster-', '')}</td>
+      ${hasCategories ? `<td><span class="cat-dot" style="background:${catColor}" title="${CAT_NAMES[c.anchor_category] || ''}"></span> ${c.anchor_category || ''}</td>` : ''}
+      <td>${c.freq}</td>
+      <td>${c.num_rollouts}</td>
+      <td>${c.entropy.toFixed(3)}</td>
+      <td>${c.mean_similarity.toFixed(3)}</td>
+      <td>${c._totalSentences}</td>
+      ${hasConditions ? `<td>${condBar}</td>` : ''}
+      <td class="wrap" title="${escapeHtml(c.representative_sentence || '')}">${escapeHtml((c.representative_sentence || '').slice(0, 80))}${(c.representative_sentence || '').length > 80 ? '...' : ''}</td>
+    </tr>`;
+  });
+
+  if (filtered.length === 0) {
+    const colSpan = cols.length;
+    html = `<tr><td colspan="${colSpan}" style="text-align:center;padding:24px;color:var(--text-muted)">No clusters match filters</td></tr>`;
+  }
+
+  tbody.innerHTML = html;
+
+  // Scroll selected row into view
+  if (selectedId) {
+    const row = tbody.querySelector(`tr[data-id="${selectedId}"]`);
+    if (row) row.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function renderDetail() {
+  const panel = document.getElementById('detail-panel');
+  if (!panel) return;
+
+  if (!selectedId || !clusterMap[selectedId]) {
+    panel.className = 'detail-panel empty-state';
+    panel.innerHTML = 'Click a cluster to inspect';
+    return;
+  }
+
+  panel.className = 'detail-panel';
+  const c = clusterMap[selectedId];
+  const catColor = CAT_COLORS[c.anchor_category] || 'var(--text-muted)';
+
+  // Stats cards
+  let statsHtml = `
+    <div class="detail-stat"><div class="label">Frequency</div><div class="value" style="color:var(--accent)">${c.freq}</div></div>
+    <div class="detail-stat"><div class="label">Rollouts</div><div class="value">${c.num_rollouts}</div></div>
+    <div class="detail-stat"><div class="label">Entropy</div><div class="value" style="color:${c.entropy > 0.9 ? 'var(--orange)' : 'var(--green)'}">${c.entropy.toFixed(3)}</div></div>
+    <div class="detail-stat"><div class="label">Similarity</div><div class="value">${c.mean_similarity.toFixed(3)}</div></div>
+    <div class="detail-stat"><div class="label">Unique Sents</div><div class="value">${(c.sentences || []).length}</div></div>
+  `;
+
+  // Category badge
+  let catBadge = '';
+  if (c.anchor_category) {
+    catBadge = `<span class="detail-badge" style="background:${catColor}22;color:${catColor}">${c.anchor_category} — ${c.anchor_category_name || CAT_NAMES[c.anchor_category] || ''}</span>`;
+  }
+
+  // Condition breakdown bar
+  let condHtml = '';
+  const condTotal = Object.values(c._conditions).reduce((a, b) => a + b, 0);
+  if (condTotal > 0) {
+    const segs = Object.entries(c._conditions).map(([cond, n]) => {
+      const pct = (n / condTotal * 100);
+      const color = cond === 'uncued' ? 'var(--green)' : cond === 'cued' ? 'var(--red)' : 'var(--text-muted)';
+      return `<span class="seg" style="width:${pct.toFixed(1)}%;background:${color}" title="${cond}: ${n} (${pct.toFixed(0)}%)">${pct >= 10 ? `${cond} ${pct.toFixed(0)}%` : ''}</span>`;
+    }).join('');
+    condHtml = `
+      <div class="condition-bar-wrap">
+        <div class="section-label">Condition Breakdown (${condTotal} rollouts)</div>
+        <div class="condition-bar">${segs}</div>
+        <div style="display:flex;gap:12px;margin-top:4px;font-size:11px;color:var(--text-muted)">
+          ${Object.entries(c._conditions).map(([cond, n]) => {
+            const color = cond === 'uncued' ? 'var(--green)' : cond === 'cued' ? 'var(--red)' : 'var(--text-muted)';
+            return `<span><span style="color:${color};font-weight:600">${n}</span> ${cond} (${(n/condTotal*100).toFixed(0)}%)</span>`;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  // Property checker bars
+  let propHtml = '';
+  for (const pc of propertyCheckers) {
+    if (pc === 'condition') continue;
+    const props = c._properties[pc];
+    if (!props) continue;
+    const total = Object.values(props).reduce((a, b) => a + b, 0);
+    if (total === 0) continue;
+    const segs = Object.entries(props).map(([val, n]) => {
+      const pct = (n / total * 100);
+      let color;
+      if (val === 'true') color = 'var(--green)';
+      else if (val === 'false') color = 'var(--red)';
+      else color = 'var(--text-muted)';
+      return `<span class="seg" style="width:${pct.toFixed(1)}%;background:${color}" title="${val}: ${n}">${pct >= 15 ? `${val} ${pct.toFixed(0)}%` : ''}</span>`;
+    }).join('');
+    propHtml += `
+      <div class="prop-bar-wrap">
+        <div class="prop-bar-label">${pc}${pc === 'unfaithful' ? ' (cued only)' : ''} (${total})</div>
+        <div class="prop-bar">${segs}</div>
+      </div>
+    `;
+  }
+
+  // Sentences list
+  const sortedSentences = [...(c.sentences || [])].sort((a, b) => b.count - a.count);
+  let sentHtml = '';
+  sortedSentences.forEach(s => {
+    let text = escapeHtml(s.text);
+    if (searchTerm) {
+      const re = new RegExp(`(${escapeRegExp(searchTerm)})`, 'gi');
+      text = text.replace(re, '<mark>$1</mark>');
+    }
+    sentHtml += `<div class="sentence-item">
+      <span class="sentence-count">&times;${s.count}</span>
+      <span class="sentence-text">${text}</span>
+    </div>`;
+  });
+
+  // Rollouts passing through this cluster
+  let rolloutHtml = '';
+  if (c._responseSeeds.length > 0) {
+    const seedSet = [...new Set(c._responseSeeds)].sort((a, b) => a - b);
+    rolloutHtml = seedSet.map(seed => {
+      const resp = responses.find(r => r.seed === seed);
+      if (!resp) return '';
+      const cond = resp.condition || 'unknown';
+      const color = cond === 'cued' ? 'rgba(248,81,73,0.15)' : cond === 'uncued' ? 'rgba(63,185,80,0.15)' : 'rgba(139,148,158,0.15)';
+      const textColor = cond === 'cued' ? 'var(--red)' : cond === 'uncued' ? 'var(--green)' : 'var(--text-muted)';
+      return `<span class="rollout-chip" style="background:${color};color:${textColor}" title="${cond}, answer: ${resp.answer}">#${seed} → ${resp.answer}</span>`;
+    }).join('');
+  }
+
+  panel.innerHTML = `
+    <div class="detail-header">
+      <span class="detail-title">${c.id}</span>
+      ${catBadge}
+    </div>
+    <div class="detail-stats">${statsHtml}</div>
+    <div class="section-label">Representative Sentence</div>
+    <div class="repr-sentence">${escapeHtml(c.representative_sentence || '')}</div>
+    ${condHtml}
+    ${propHtml ? `<div class="section-label">Property Checkers</div>${propHtml}` : ''}
+    <div class="section-label">Sentences (${sortedSentences.length} unique, ${c._totalSentences} total)</div>
+    <div class="sentence-list">${sentHtml}</div>
+    ${rolloutHtml ? `<div class="section-label">Rollouts (${[...new Set(c._responseSeeds)].length})</div><div class="rollout-list-detail">${rolloutHtml}</div>` : ''}
+  `;
+}
+
+// ==================== Event Handlers ====================
+function selectCluster(id) {
+  selectedId = id;
+  renderTable();
+  renderDetail();
+}
+
+function onSort(col) {
+  if (sortCol === col) {
+    sortDir = sortDir === 'desc' ? 'asc' : 'desc';
+  } else {
+    sortCol = col;
+    sortDir = 'desc';
+  }
+  renderTable();
+}
+
+function onSearch(val) {
+  searchTerm = val;
+  renderTable();
+  if (selectedId) renderDetail();
+}
+
+function toggleCategory(cat) {
+  if (activeCategories.has(cat)) activeCategories.delete(cat);
+  else activeCategories.add(cat);
+  renderSidebar();
+  renderTable();
+}
+
+function selectAllCategories() {
+  activeCategories = new Set(categories);
+  renderSidebar();
+  renderTable();
+}
+
+function selectNoCategories() {
+  activeCategories = new Set();
+  renderSidebar();
+  renderTable();
+}
+
+function onMinFreq(val) {
+  minFreq = val;
+  document.getElementById('min-freq-val').textContent = val;
+  renderTable();
+}
+
+function onMinRollouts(val) {
+  minRollouts = val;
+  document.getElementById('min-rollouts-val').textContent = val;
+  renderTable();
+}
+
+function setQuickFilter(f) {
+  quickFilter = quickFilter === f ? null : f;
+  renderSidebar();
+  renderTable();
+}
+
+// ==================== Keyboard Navigation ====================
+document.addEventListener('keydown', (e) => {
+  if (!flowData) return;
+  if (e.target.tagName === 'INPUT') {
+    if (e.key === 'Escape') { e.target.blur(); e.preventDefault(); }
+    return;
+  }
+
+  if (e.key === '/') {
+    e.preventDefault();
+    const input = document.getElementById('search-input');
+    if (input) input.focus();
+    return;
+  }
+
+  if (e.key === 'Escape') {
+    selectedId = null;
+    renderTable();
+    renderDetail();
+    return;
+  }
+
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'j' || e.key === 'k') {
+    e.preventDefault();
+    const filtered = getFilteredClusters();
+    if (filtered.length === 0) return;
+
+    const currentIdx = selectedId ? filtered.findIndex(c => c.id === selectedId) : -1;
+    let nextIdx;
+    if (e.key === 'ArrowDown' || e.key === 'j') {
+      nextIdx = currentIdx < filtered.length - 1 ? currentIdx + 1 : currentIdx;
+    } else {
+      nextIdx = currentIdx > 0 ? currentIdx - 1 : 0;
+    }
+    selectCluster(filtered[nextIdx].id);
+  }
+});
+
+// ==================== Utilities ====================
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// ==================== Auto-load from ?file= param ====================
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const filePath = params.get('file');
+  if (filePath) {
+    document.getElementById('file-info').innerHTML = '<span class="spinner"></span> Loading...';
+    fetch(filePath)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+        return r.json();
+      })
+      .then(data => {
+        if (!data.nodes || !data.responses) throw new Error('Invalid flowchart JSON');
+        flowData = data;
+        processData();
+        renderAll();
+        const name = filePath.split('/').pop();
+        document.getElementById('file-info').textContent = name;
+      })
+      .catch(err => {
+        document.getElementById('file-info').textContent = `Failed to load: ${err.message}`;
+      });
+  }
+})();
+</script>
+</body>
+</html>
